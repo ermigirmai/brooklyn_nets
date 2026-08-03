@@ -16,7 +16,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     <div className="min-h-screen bg-[#090909] text-[#f4f3ee]">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-[232px] border-r border-white/10 bg-[#101010] lg:flex lg:flex-col">
         <div className="px-6 pt-7">
-          <img src="/brand/bklyn-nets-city-edition.png" alt="BKL​YN NETS City Edition" className="h-12 w-[102px] object-cover" />
+          <img src="/brand/brooklyn-nets-primary.svg" alt="Brooklyn Nets" className="h-20 w-20 object-contain" />
         </div>
 
         <nav className="mt-12 px-3">
