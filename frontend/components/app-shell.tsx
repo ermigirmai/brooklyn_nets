@@ -18,8 +18,8 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
       <aside className={`fixed inset-y-0 left-0 z-20 hidden border-r border-white/10 bg-[#101010] transition-[width] duration-200 lg:flex lg:flex-col ${collapsed ? "w-[72px]" : "w-[232px]"}`}>
         <div className={`relative flex items-start pt-7 ${collapsed ? "justify-center px-2" : "px-6"}`}>
           <img src={collapsed ? "/brand/brooklyn-nets-primary.svg" : "/brand/brooklyn-nets-alternate.png"} alt="Brooklyn Nets" className={collapsed ? "h-12 w-12 object-contain" : "h-20 w-[184px] object-contain"} />
-          <button type="button" onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} className="absolute -right-3 top-8 grid h-7 w-7 place-items-center rounded-full border border-white/20 bg-[#171717] text-lg text-white shadow-lg transition hover:border-white/60 hover:bg-[#252525]">{collapsed ? "›" : "‹"}</button>
         </div>
+        <button type="button" onClick={() => setCollapsed((value) => !value)} aria-label={collapsed ? "Expand sidebar" : "Collapse sidebar"} className="absolute -right-3 top-1/2 z-30 grid h-7 w-7 -translate-y-1/2 place-items-center rounded-full border border-white/20 bg-[#171717] text-lg text-white shadow-lg transition hover:border-white/60 hover:bg-[#252525]">{collapsed ? "›" : "‹"}</button>
 
         <nav className={`mt-12 ${collapsed ? "px-2" : "px-3"}`}>
           {navItems.map((item) => (
