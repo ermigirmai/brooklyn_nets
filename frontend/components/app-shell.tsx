@@ -43,10 +43,9 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
       </aside>
 
       <div className="lg:pl-[232px]">
-        <header className="flex h-[72px] items-center gap-5 border-b border-white/10 bg-[#0c0c0c] px-5 md:px-8">
-          <p className="text-lg font-black tracking-[-.06em]">Broooooooooooklyn</p>
-          <span className="h-5 w-px bg-white/15" />
-          <p className="text-sm text-white/55">Hi, <span className="font-bold text-white">Ermi</span></p>
+        <header className="relative flex h-[72px] items-center justify-center border-b border-white/10 bg-[#0c0c0c] px-5 md:px-8">
+          <p className="text-lg font-black tracking-[-.06em]">BROOOOOOOOOK-LYNNNN!</p>
+          <p className="absolute right-5 text-sm text-white/55 md:right-8">Hi, <span className="font-bold text-white">Ermi</span></p>
         </header>
         {children}
       </div>
