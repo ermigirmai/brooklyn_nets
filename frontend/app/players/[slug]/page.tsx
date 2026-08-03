@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import { getPlayer } from "@/lib/api";
 import type { PlayerEvaluation } from "@/lib/types";
 import { AppShell } from "@/components/app-shell";
+import { TrendChart } from "@/components/trend-chart";
 
 const money = (value: number) => `$${(value / 1_000_000).toFixed(1)}M`;
 
@@ -26,8 +27,8 @@ export default async function PlayerPage({ params }: { params: Promise<{ slug: s
         {player.key_metrics.map((metric, index) => <article key={metric.label} className="bg-[#121212] p-5"><div className="flex items-start justify-between"><p className="text-[10px] font-bold tracking-[0.16em] text-white/45">{metric.label}</p><span className="font-mono text-[10px] text-white/30">0{index + 1}</span></div><p className="mt-5 text-4xl font-black tracking-[-0.06em]">{metric.display_value}</p><div className="mt-4 h-1 bg-white/10"><div className="h-full bg-white" style={{ width: `${metric.percentile}%` }} /></div><p className="mt-2 text-[11px] font-bold text-white/60">{metric.percentile}TH PERCENTILE</p></article>)}
         </section>
 
-      <section className="mt-5 grid gap-5 xl:grid-cols-[1.45fr_0.8fr]">
-          <article className="border border-white/10 bg-[#121212] p-6"><div className="flex items-center justify-between"><h2 className="text-sm font-black uppercase tracking-[0.12em]">Production trajectory</h2><span className="text-[10px] uppercase tracking-wider text-white/35">Per game</span></div><div className="mt-7 grid grid-cols-5 border-b border-white/10 pb-3 text-[10px] font-bold uppercase tracking-wider text-white/35"><span>Season</span><span>Points</span><span>True shooting</span><span>Usage</span><span>Minutes</span></div><div>{player.season_trends.map((season) => <div key={season.season} className="grid grid-cols-5 border-b border-white/10 py-5 text-sm last:border-0"><span className="font-bold">{season.season}</span><span>{season.points}<small className="ml-1 text-[10px] text-white/35">PPG</small></span><span>{season.true_shooting}%</span><span>{season.usage}%</span><span>{season.minutes}<small className="ml-1 text-[10px] text-white/35">MPG</small></span></div>)}</div></article>
+        <section className="mt-5 grid gap-5 xl:grid-cols-[1.45fr_0.8fr]">
+          <TrendChart seasons={player.season_trends} />
           <article className="border border-white/10 bg-[#121212] p-6"><p className="text-[10px] font-bold uppercase tracking-[0.16em] text-white/40">Contract context</p><p className="mt-5 text-4xl font-black tracking-[-0.06em]">{money(player.contract.current_salary)}</p><p className="mt-1 text-[11px] font-bold uppercase tracking-wider text-white/60">Current salary</p><dl className="mt-8 space-y-4 border-t border-white/10 pt-5 text-sm"><div className="flex justify-between"><dt className="text-white/45">Years remaining</dt><dd className="font-bold">{player.contract.years_remaining}</dd></div><div className="flex justify-between"><dt className="text-white/45">Cap share</dt><dd className="font-bold">{player.contract.cap_percentage}%</dd></div><div className="flex justify-between"><dt className="text-white/45">Structure</dt><dd className="font-bold">{player.contract.contract_type}</dd></div></dl></article>
         </section>
 
