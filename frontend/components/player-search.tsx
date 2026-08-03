@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 type SearchResult = { slug: string; name: string; team: string; position: string };
 const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 
-export function PlayerSearch() {
+export function PlayerSearch({ onSelect }: { onSelect?: (slug: string) => void }) {
   const router = useRouter();
   const [query, setQuery] = useState("");
   const [results, setResults] = useState<SearchResult[]>([]);
@@ -25,7 +25,7 @@ export function PlayerSearch() {
   function selectPlayer(slug: string) {
     setQuery("");
     setOpen(false);
-    router.push(`/players/${slug}`);
+    if (onSelect) onSelect(slug); else router.push(`/players/${slug}`);
   }
 
   return (
