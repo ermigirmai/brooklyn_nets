@@ -73,6 +73,28 @@ def initialize() -> None:
           fg_pct REAL,
           PRIMARY KEY (person_id, season, zone)
         );
+        CREATE TABLE IF NOT EXISTS player_contracts (
+          person_id INTEGER PRIMARY KEY,
+          contract_type TEXT,
+          total_value INTEGER,
+          guaranteed_value INTEGER,
+          current_salary INTEGER,
+          cap_hit INTEGER,
+          years_remaining INTEGER,
+          as_of_date TEXT NOT NULL,
+          source TEXT NOT NULL,
+          source_url TEXT
+        );
+        CREATE TABLE IF NOT EXISTS contract_years (
+          person_id INTEGER NOT NULL,
+          season TEXT NOT NULL,
+          salary INTEGER,
+          guaranteed INTEGER,
+          player_option INTEGER NOT NULL DEFAULT 0,
+          team_option INTEGER NOT NULL DEFAULT 0,
+          early_termination_option INTEGER NOT NULL DEFAULT 0,
+          PRIMARY KEY (person_id, season)
+        );
         """)
 
 
@@ -83,6 +105,7 @@ def data_status() -> dict[str, int]:
             "advanced_stat_rows": connection.execute("SELECT COUNT(*) FROM player_season_advanced_stats").fetchone()[0],
             "combine_measurements": connection.execute("SELECT COUNT(*) FROM draft_combine_measurements").fetchone()[0],
             "combine_tests": connection.execute("SELECT COUNT(*) FROM draft_combine_tests").fetchone()[0],
+            "contracts": connection.execute("SELECT COUNT(*) FROM player_contracts").fetchone()[0],
         }
 
 
@@ -93,14 +116,18 @@ def search_ingested_players(query: str, limit: int = 12) -> list[sqlite3.Row]:
 
 
 def similar_ingested_players(person_id: int, season: str, limit: int = 5) -> list[dict]:
-    """Nearest players using a transparent Euclidean distance on raw advanced metrics."""
+    """Nearest players using z-score-normalized, same-season advanced metrics."""
     with connect() as connection:
         target = connection.execute("SELECT off_rating, def_rating, net_rating, usage_pct, ts_pct, pace, pie FROM player_season_advanced_stats WHERE person_id=? AND season=?", (person_id, season)).fetchone()
         if not target:
             return []
-        rows = connection.execute("""SELECT p.slug, p.full_name, p.team_name, s.off_rating, s.def_rating, s.net_rating, s.usage_pct, s.ts_pct, s.pace, s.pie FROM player_season_advanced_stats s JOIN players p ON p.person_id=s.person_id WHERE s.season=? AND s.person_id!=? AND s.min>=500""", (season, person_id)).fetchall()
+        rows = connection.execute("""SELECT p.slug, p.full_name, p.team_name, s.off_rating, s.def_rating, s.net_rating, s.usage_pct, s.ts_pct, s.pace, s.pie FROM player_season_advanced_stats s JOIN players p ON p.person_id=s.person_id WHERE s.season=? AND s.person_id!=? AND s.min>=20""", (season, person_id)).fetchall()
+        if not rows:
+            return []
         keys = ("off_rating", "def_rating", "net_rating", "usage_pct", "ts_pct", "pace", "pie")
-        scored = [(sum((float(row[key] or 0) - float(target[key] or 0)) ** 2 for key in keys) ** 0.5, row) for row in rows]
+        means = {key: sum(float(row[key] or 0) for row in rows) / len(rows) for key in keys}
+        deviations = {key: (sum((float(row[key] or 0) - means[key]) ** 2 for row in rows) / len(rows)) ** 0.5 or 1 for key in keys}
+        scored = [(sum(((float(row[key] or 0) - float(target[key] or 0)) / deviations[key]) ** 2 for key in keys) ** 0.5, row) for row in rows]
         return [{"slug": row["slug"], "name": row["full_name"], "team": row["team_name"], "distance": round(distance, 2)} for distance, row in sorted(scored, key=lambda item: item[0])[:limit]]
 
 
@@ -115,4 +142,6 @@ def ingested_player_detail(slug: str) -> dict | None:
         measurements = connection.execute("SELECT * FROM draft_combine_measurements WHERE person_id = ? ORDER BY season DESC LIMIT 1", (person_id,)).fetchone()
         tests = connection.execute("SELECT * FROM draft_combine_tests WHERE person_id = ? ORDER BY season DESC LIMIT 1", (person_id,)).fetchone()
         shooting = connection.execute("SELECT zone, fga, fgm, fg_pct FROM player_shooting_zones WHERE person_id = ? AND season = ? ORDER BY fga DESC", (person_id, advanced["season"] if advanced else "")).fetchall()
-        return {"player": dict(player), "advanced_season": dict(advanced) if advanced else None, "advanced_history": [dict(row) for row in history], "similar_players": similar_ingested_players(person_id, advanced["season"]) if advanced else [], "shooting_zones": [dict(row) for row in shooting], "combine_measurements": dict(measurements) if measurements else None, "combine_tests": dict(tests) if tests else None}
+        contract = connection.execute("SELECT * FROM player_contracts WHERE person_id = ?", (person_id,)).fetchone()
+        contract_years = connection.execute("SELECT * FROM contract_years WHERE person_id = ? ORDER BY season", (person_id,)).fetchall()
+        return {"player": dict(player), "advanced_season": dict(advanced) if advanced else None, "advanced_history": [dict(row) for row in history], "similar_players": similar_ingested_players(person_id, advanced["season"]) if advanced else [], "shooting_zones": [dict(row) for row in shooting], "combine_measurements": dict(measurements) if measurements else None, "combine_tests": dict(tests) if tests else None, "contract": dict(contract) if contract else None, "contract_years": [dict(row) for row in contract_years]}

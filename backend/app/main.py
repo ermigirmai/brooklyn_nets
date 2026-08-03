@@ -1,11 +1,16 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import data_status, ingested_player_detail, search_ingested_players
+from app.database import data_status, ingested_player_detail, initialize, search_ingested_players
 from app.repository import get_player, search_players
 from app.schemas import PlayerEvaluation, PlayerSearchResult
 
 app = FastAPI(title="CourtVision API", version="0.1.0")
+
+
+@app.on_event("startup")
+def create_schema() -> None:
+    initialize()
 
 app.add_middleware(
     CORSMiddleware,
