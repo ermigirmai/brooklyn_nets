@@ -23,6 +23,9 @@ def initialize() -> None:
           height TEXT,
           weight TEXT,
           birthdate TEXT,
+          school TEXT,
+          country TEXT,
+          draft_year TEXT,
           headshot_url TEXT
         );
         CREATE TABLE IF NOT EXISTS player_season_advanced_stats (
@@ -137,6 +140,11 @@ def initialize() -> None:
         measurement_columns = {row["name"] for row in connection.execute("PRAGMA table_info(draft_combine_measurements)")}
         if "position" not in measurement_columns:
             connection.execute("ALTER TABLE draft_combine_measurements ADD COLUMN position TEXT")
+        player_columns = {row["name"] for row in connection.execute("PRAGMA table_info(players)")}
+        for column in ("school TEXT", "country TEXT", "draft_year TEXT"):
+            name = column.split()[0]
+            if name not in player_columns:
+                connection.execute(f"ALTER TABLE players ADD COLUMN {column}")
 
 
 def data_status() -> dict[str, int]:
