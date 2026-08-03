@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import data_status
+from app.database import data_status, ingested_player_detail
 from app.repository import get_player, search_players
 from app.schemas import PlayerEvaluation, PlayerSearchResult
 
@@ -24,6 +24,14 @@ def health() -> dict[str, str]:
 @app.get("/api/v1/data-status")
 def database_status() -> dict[str, int]:
     return data_status()
+
+
+@app.get("/api/v1/ingested-players/{slug}")
+def ingested_player(slug: str) -> dict:
+    detail = ingested_player_detail(slug)
+    if detail is None:
+        raise HTTPException(status_code=404, detail="Ingested player not found")
+    return detail
 
 
 @app.get("/api/v1/players", response_model=list[PlayerSearchResult])

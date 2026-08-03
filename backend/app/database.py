@@ -81,3 +81,15 @@ def search_ingested_players(query: str, limit: int = 12) -> list[sqlite3.Row]:
     with connect() as connection:
         return connection.execute("""SELECT slug, full_name, team_name, position FROM players
           WHERE full_name LIKE ? ORDER BY full_name LIMIT ?""", (f"%{query}%", limit)).fetchall()
+
+
+def ingested_player_detail(slug: str) -> dict | None:
+    with connect() as connection:
+        player = connection.execute("SELECT * FROM players WHERE slug = ?", (slug,)).fetchone()
+        if not player:
+            return None
+        person_id = player["person_id"]
+        advanced = connection.execute("SELECT * FROM player_season_advanced_stats WHERE person_id = ? ORDER BY season DESC LIMIT 1", (person_id,)).fetchone()
+        measurements = connection.execute("SELECT * FROM draft_combine_measurements WHERE person_id = ? ORDER BY season DESC LIMIT 1", (person_id,)).fetchone()
+        tests = connection.execute("SELECT * FROM draft_combine_tests WHERE person_id = ? ORDER BY season DESC LIMIT 1", (person_id,)).fetchone()
+        return {"player": dict(player), "advanced_season": dict(advanced) if advanced else None, "combine_measurements": dict(measurements) if measurements else None, "combine_tests": dict(tests) if tests else None}
