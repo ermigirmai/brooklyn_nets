@@ -4,9 +4,8 @@ import { useState } from "react";
 
 const navItems = [
   { label: "Evaluate", glyph: "01", active: true },
-  { label: "Players", glyph: "02" },
-  { label: "Teams", glyph: "03" },
-  { label: "Reports", glyph: "04" },
+  { label: "Challenge Assist", glyph: "02" },
+  { label: "Reports", glyph: "03" },
 ];
 
 export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
