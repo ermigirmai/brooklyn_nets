@@ -37,7 +37,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
         <div className="mt-auto border-t border-white/10 p-6">
           <div className="flex items-center gap-3">
             <div className="grid h-8 w-8 place-items-center rounded-full bg-[#e84b37] text-xs font-black">EA</div>
-            <div><p className="text-xs font-bold">Ermi A.</p><p className="mt-0.5 text-[10px] uppercase tracking-wider text-white/40">Analyst</p></div>
+            <div><p className="text-[10px] uppercase tracking-wider text-white/40">Analyst</p></div>
           </div>
         </div>
       </aside>
