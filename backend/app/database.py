@@ -89,7 +89,8 @@ def ingested_player_detail(slug: str) -> dict | None:
         if not player:
             return None
         person_id = player["person_id"]
-        advanced = connection.execute("SELECT * FROM player_season_advanced_stats WHERE person_id = ? ORDER BY season DESC LIMIT 1", (person_id,)).fetchone()
+        history = connection.execute("SELECT * FROM player_season_advanced_stats WHERE person_id = ? ORDER BY season", (person_id,)).fetchall()
+        advanced = history[-1] if history else None
         measurements = connection.execute("SELECT * FROM draft_combine_measurements WHERE person_id = ? ORDER BY season DESC LIMIT 1", (person_id,)).fetchone()
         tests = connection.execute("SELECT * FROM draft_combine_tests WHERE person_id = ? ORDER BY season DESC LIMIT 1", (person_id,)).fetchone()
-        return {"player": dict(player), "advanced_season": dict(advanced) if advanced else None, "combine_measurements": dict(measurements) if measurements else None, "combine_tests": dict(tests) if tests else None}
+        return {"player": dict(player), "advanced_season": dict(advanced) if advanced else None, "advanced_history": [dict(row) for row in history], "combine_measurements": dict(measurements) if measurements else None, "combine_tests": dict(tests) if tests else None}
