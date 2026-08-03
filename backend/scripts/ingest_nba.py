@@ -26,6 +26,8 @@ def value(row: dict, key: str):
 def ingest_season_advanced(season: str) -> int:
     response = leaguedashplayerstats.LeagueDashPlayerStats(season=season, measure_type_detailed_defense="Advanced")
     rows = response.get_data_frames()[0].to_dict("records")
+    basic_rows = leaguedashplayerstats.LeagueDashPlayerStats(season=season, per_mode_detailed="PerGame").get_data_frames()[0].to_dict("records")
+    basic = {row["PLAYER_ID"]: row for row in basic_rows}
     with connect() as connection:
         for row in rows:
             person_id = row["PLAYER_ID"]
@@ -33,11 +35,13 @@ def ingest_season_advanced(season: str) -> int:
             connection.execute("""INSERT INTO players (person_id, slug, full_name, team_name, position, headshot_url)
               VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(person_id) DO UPDATE SET team_name=excluded.team_name, position=excluded.position""",
               (person_id, slugify(name), name, row.get("TEAM_ABBREVIATION"), row.get("PLAYER_POSITION"), f"https://cdn.nba.com/headshots/nba/latest/1040x760/{person_id}.png"))
+            box = basic.get(person_id, {})
+            efg = (box.get("FGM", 0) + 0.5 * box.get("FG3M", 0)) / box["FGA"] if box.get("FGA") else None
             connection.execute("""INSERT INTO player_season_advanced_stats
-              (person_id, season, gp, min, off_rating, def_rating, net_rating, usage_pct, ts_pct, pace, pie)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-              ON CONFLICT(person_id, season) DO UPDATE SET gp=excluded.gp, min=excluded.min, off_rating=excluded.off_rating, def_rating=excluded.def_rating, net_rating=excluded.net_rating, usage_pct=excluded.usage_pct, ts_pct=excluded.ts_pct, pace=excluded.pace, pie=excluded.pie""",
-              (person_id, season, value(row, "GP"), value(row, "MIN"), value(row, "OFF_RATING"), value(row, "DEF_RATING"), value(row, "NET_RATING"), value(row, "USG_PCT"), value(row, "TS_PCT"), value(row, "PACE"), value(row, "PIE")))
+              (person_id, season, gp, min, off_rating, def_rating, net_rating, usage_pct, ts_pct, pace, pie, pts, ast, reb, efg_pct)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(person_id, season) DO UPDATE SET gp=excluded.gp, min=excluded.min, off_rating=excluded.off_rating, def_rating=excluded.def_rating, net_rating=excluded.net_rating, usage_pct=excluded.usage_pct, ts_pct=excluded.ts_pct, pace=excluded.pace, pie=excluded.pie, pts=excluded.pts, ast=excluded.ast, reb=excluded.reb, efg_pct=excluded.efg_pct""",
+              (person_id, season, value(row, "GP"), value(row, "MIN"), value(row, "OFF_RATING"), value(row, "DEF_RATING"), value(row, "NET_RATING"), value(row, "USG_PCT"), value(row, "TS_PCT"), value(row, "PACE"), value(row, "PIE"), value(box, "PTS"), value(box, "AST"), value(box, "REB"), efg))
     return len(rows)
 
 

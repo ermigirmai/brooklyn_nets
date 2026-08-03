@@ -2,6 +2,13 @@
 @tailwind components;
 @tailwind utilities;
 
+/* The profile intentionally occupies only part of the opening row. The rest is
+   reserved for the selected-team decision context in the next layout pass. */
+main > header {
+  max-width: 460px;
+  margin-bottom: 2.5rem;
+}
+
 :root { color-scheme: dark; }
 
 * { box-sizing: border-box; }

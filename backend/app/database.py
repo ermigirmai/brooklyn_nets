@@ -97,6 +97,11 @@ def initialize() -> None:
           PRIMARY KEY (person_id, season)
         );
         """)
+        for column in ("pts REAL", "ast REAL", "reb REAL", "efg_pct REAL"):
+            try:
+                connection.execute(f"ALTER TABLE player_season_advanced_stats ADD COLUMN {column}")
+            except sqlite3.OperationalError:
+                pass
         columns = {row["name"] for row in connection.execute("PRAGMA table_info(player_contracts)")}
         if "team_code" not in columns:
             connection.execute("ALTER TABLE player_contracts ADD COLUMN team_code TEXT")
@@ -127,7 +132,7 @@ def team_context(team_code: str, player_slug: str | None = None) -> dict:
         roster = connection.execute("""SELECT p.person_id, p.full_name, s.off_rating, s.def_rating, s.net_rating, s.usage_pct, s.ts_pct
           FROM players p JOIN player_season_advanced_stats s ON s.person_id=p.person_id
           WHERE p.team_name=? AND s.season=?""", (team_code, season)).fetchall()
-        keys = ("off_rating", "def_rating", "net_rating", "usage_pct", "ts_pct")
+        keys = ("pts", "ast", "reb", "efg_pct", "off_rating", "def_rating", "net_rating", "usage_pct", "ts_pct", "pie")
         averages = {key: round(sum(float(row[key] or 0) for row in roster) / len(roster), 3) if roster else None for key in keys}
         payroll = connection.execute("SELECT COALESCE(SUM(current_salary), 0), COUNT(*) FROM player_contracts WHERE team_code=?", (team_code,)).fetchone()
         relative = None
