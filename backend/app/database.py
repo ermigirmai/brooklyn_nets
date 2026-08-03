@@ -64,6 +64,15 @@ def initialize() -> None:
           bench_press REAL,
           PRIMARY KEY (person_id, season)
         );
+        CREATE TABLE IF NOT EXISTS player_shooting_zones (
+          person_id INTEGER NOT NULL,
+          season TEXT NOT NULL,
+          zone TEXT NOT NULL,
+          fga INTEGER,
+          fgm INTEGER,
+          fg_pct REAL,
+          PRIMARY KEY (person_id, season, zone)
+        );
         """)
 
 

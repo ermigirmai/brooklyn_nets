@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.database import connect, initialize
-from nba_api.stats.endpoints import draftcombinestats, leaguedashplayerstats
+from nba_api.stats.endpoints import draftcombinestats, leaguedashplayerstats, shotchartdetail
 
 
 def slugify(name: str) -> str:
@@ -56,11 +56,26 @@ def ingest_combine(season: str) -> int:
     return len(rows)
 
 
+def ingest_player_shooting_zones(person_id: int, season: str) -> int:
+    """Ingest one player's NBA shot-chart zone aggregates; call selectively to respect rate limits."""
+    response = shotchartdetail.ShotChartDetail(team_id=0, player_id=person_id, context_measure_simple="FGA", season_nullable=season, season_type_all_star="Regular Season")
+    rows = response.get_data_frames()[1].to_dict("records")
+    with connect() as connection:
+        for row in rows:
+            connection.execute("""INSERT INTO player_shooting_zones (person_id, season, zone, fga, fgm, fg_pct)
+              VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(person_id, season, zone) DO UPDATE SET fga=excluded.fga, fgm=excluded.fgm, fg_pct=excluded.fg_pct""",
+              (person_id, season, row.get("GROUP_VALUE"), row.get("FGA"), row.get("FGM"), row.get("FG_PCT")))
+    return len(rows)
+
+
 if __name__ == "__main__":
     parser = argparse.ArgumentParser()
     parser.add_argument("--season", required=True)
     parser.add_argument("--combine-season", required=True)
+    parser.add_argument("--shooting-player-id", type=int)
     args = parser.parse_args()
     initialize()
     print(f"Upserted {ingest_season_advanced(args.season)} season advanced-stat rows")
     print(f"Upserted {ingest_combine(args.combine_season)} draft-combine rows")
+    if args.shooting_player_id:
+        print(f"Upserted {ingest_player_shooting_zones(args.shooting_player_id, args.season)} shooting-zone rows")
