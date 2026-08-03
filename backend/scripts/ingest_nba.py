@@ -12,7 +12,7 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 
 from app.database import connect, initialize
-from nba_api.stats.endpoints import draftcombinestats, leaguedashplayerstats, shotchartdetail
+from nba_api.stats.endpoints import draftcombinedrillresults, draftcombinenonstationaryshooting, draftcombinespotshooting, draftcombinestats, leaguedashplayerstats, shotchartdetail
 
 
 def slugify(name: str) -> str:
@@ -54,10 +54,28 @@ def ingest_combine(season: str) -> int:
             connection.execute("""INSERT INTO draft_combine_measurements
               VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(person_id, season) DO UPDATE SET player_name=excluded.player_name""",
               (person_id, season, name, value(row, "HEIGHT_WO_SHOES"), value(row, "HEIGHT_W_SHOES"), value(row, "WEIGHT"), value(row, "WINGSPAN"), value(row, "STANDING_REACH"), value(row, "BODY_FAT_PCT"), value(row, "HAND_LENGTH"), value(row, "HAND_WIDTH")))
-            connection.execute("""INSERT INTO draft_combine_tests
+            connection.execute("""INSERT INTO draft_combine_tests (person_id, season, player_name, standing_vertical, max_vertical, lane_agility, three_quarter_sprint, bench_press)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(person_id, season) DO UPDATE SET player_name=excluded.player_name""",
               (person_id, season, name, value(row, "STANDING_VERTICAL_LEAP"), value(row, "MAX_VERTICAL_LEAP"), value(row, "LANE_AGILITY_TIME"), value(row, "THREE_QUARTER_SPRINT"), value(row, "BENCH_PRESS")))
     return len(rows)
+
+
+def ingest_combine_evaluations(season: str) -> None:
+    """Cache public NBA combine drill and shooting endpoints for prospect evaluation."""
+    drills = draftcombinedrillresults.DraftCombineDrillResults(season_year=season).get_data_frames()[0].to_dict("records")
+    spots = draftcombinespotshooting.DraftCombineSpotShooting(season_year=season).get_data_frames()[0].to_dict("records")
+    moving = draftcombinenonstationaryshooting.DraftCombineNonStationaryShooting(season_year=season).get_data_frames()[0].to_dict("records")
+    with connect() as connection:
+        for row in drills:
+            connection.execute("""INSERT INTO draft_combine_tests (person_id, season, player_name, standing_vertical, max_vertical, lane_agility, modified_lane_agility, three_quarter_sprint, bench_press)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(person_id, season) DO UPDATE SET standing_vertical=excluded.standing_vertical, max_vertical=excluded.max_vertical, lane_agility=excluded.lane_agility, modified_lane_agility=excluded.modified_lane_agility, three_quarter_sprint=excluded.three_quarter_sprint, bench_press=excluded.bench_press""",
+              (row["PLAYER_ID"], season, row["PLAYER_NAME"], value(row, "STANDING_VERTICAL_LEAP"), value(row, "MAX_VERTICAL_LEAP"), value(row, "LANE_AGILITY_TIME"), value(row, "MODIFIED_LANE_AGILITY_TIME"), value(row, "THREE_QUARTER_SPRINT"), value(row, "BENCH_PRESS")))
+        for row in spots:
+            fields = ("COLLEGE_CORNER_LEFT_PCT", "COLLEGE_BREAK_LEFT_PCT", "COLLEGE_TOP_KEY_PCT", "COLLEGE_BREAK_RIGHT_PCT", "COLLEGE_CORNER_RIGHT_PCT", "NBA_CORNER_LEFT_PCT", "NBA_BREAK_LEFT_PCT", "NBA_TOP_KEY_PCT", "NBA_BREAK_RIGHT_PCT", "NBA_CORNER_RIGHT_PCT")
+            connection.execute(f"INSERT INTO draft_combine_spot_shooting VALUES ({','.join('?' for _ in range(13))}) ON CONFLICT(person_id, season) DO UPDATE SET " + ', '.join(f"{field.lower()}=excluded.{field.lower()}" for field in fields), (row["PLAYER_ID"], season, row["PLAYER_NAME"], *(value(row, field) for field in fields)))
+        for row in moving:
+            fields = ("OFF_DRIB_FIFTEEN_BREAK_LEFT_PCT", "OFF_DRIB_FIFTEEN_TOP_KEY_PCT", "OFF_DRIB_FIFTEEN_BREAK_RIGHT_PCT", "OFF_DRIB_COLLEGE_BREAK_LEFT_PCT", "OFF_DRIB_COLLEGE_TOP_KEY_PCT", "OFF_DRIB_COLLEGE_BREAK_RIGHT_PCT", "ON_MOVE_FIFTEEN_PCT", "ON_MOVE_COLLEGE_PCT")
+            connection.execute(f"INSERT INTO draft_combine_non_stationary_shooting VALUES ({','.join('?' for _ in range(11))}) ON CONFLICT(person_id, season) DO UPDATE SET " + ', '.join(f"{field.lower()}=excluded.{field.lower()}" for field in fields), (row["PLAYER_ID"], season, row["PLAYER_NAME"], *(value(row, field) for field in fields)))
 
 
 def ingest_player_shooting_zones(person_id: int, season: str) -> int:
@@ -83,5 +101,7 @@ if __name__ == "__main__":
     initialize()
     print(f"Upserted {ingest_season_advanced(args.season)} season advanced-stat rows")
     print(f"Upserted {ingest_combine(args.combine_season)} draft-combine rows")
+    ingest_combine_evaluations(args.combine_season)
+    print("Upserted draft-combine drill and shooting evaluation rows")
     if args.shooting_player_id:
         print(f"Upserted {ingest_player_shooting_zones(args.shooting_player_id, args.season)} shooting-zone rows")

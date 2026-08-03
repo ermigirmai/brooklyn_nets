@@ -64,6 +64,21 @@ def initialize() -> None:
           bench_press REAL,
           PRIMARY KEY (person_id, season)
         );
+        CREATE TABLE IF NOT EXISTS draft_combine_spot_shooting (
+          person_id INTEGER NOT NULL, season TEXT NOT NULL, player_name TEXT NOT NULL,
+          college_corner_left_pct REAL, college_break_left_pct REAL, college_top_key_pct REAL,
+          college_break_right_pct REAL, college_corner_right_pct REAL,
+          nba_corner_left_pct REAL, nba_break_left_pct REAL, nba_top_key_pct REAL,
+          nba_break_right_pct REAL, nba_corner_right_pct REAL,
+          PRIMARY KEY (person_id, season)
+        );
+        CREATE TABLE IF NOT EXISTS draft_combine_non_stationary_shooting (
+          person_id INTEGER NOT NULL, season TEXT NOT NULL, player_name TEXT NOT NULL,
+          off_drib_fifteen_break_left_pct REAL, off_drib_fifteen_top_key_pct REAL, off_drib_fifteen_break_right_pct REAL,
+          off_drib_college_break_left_pct REAL, off_drib_college_top_key_pct REAL, off_drib_college_break_right_pct REAL,
+          on_move_fifteen_pct REAL, on_move_college_pct REAL,
+          PRIMARY KEY (person_id, season)
+        );
         CREATE TABLE IF NOT EXISTS player_shooting_zones (
           person_id INTEGER NOT NULL,
           season TEXT NOT NULL,
@@ -115,6 +130,9 @@ def initialize() -> None:
         columns = {row["name"] for row in connection.execute("PRAGMA table_info(player_contracts)")}
         if "team_code" not in columns:
             connection.execute("ALTER TABLE player_contracts ADD COLUMN team_code TEXT")
+        test_columns = {row["name"] for row in connection.execute("PRAGMA table_info(draft_combine_tests)")}
+        if "modified_lane_agility" not in test_columns:
+            connection.execute("ALTER TABLE draft_combine_tests ADD COLUMN modified_lane_agility REAL")
 
 
 def data_status() -> dict[str, int]:
@@ -139,9 +157,16 @@ def combine_prospects(season: str) -> list[dict]:
     with connect() as connection:
         rows = connection.execute("""SELECT m.person_id, m.season, m.player_name,
           m.height_wo_shoes, m.weight, m.wingspan, m.standing_reach, m.body_fat_pct,
-          t.standing_vertical, t.max_vertical, t.lane_agility, t.three_quarter_sprint, t.bench_press
+          t.standing_vertical, t.max_vertical, t.lane_agility, t.modified_lane_agility, t.three_quarter_sprint, t.bench_press,
+          ss.college_corner_left_pct, ss.college_break_left_pct, ss.college_top_key_pct, ss.college_break_right_pct, ss.college_corner_right_pct,
+          ss.nba_corner_left_pct, ss.nba_break_left_pct, ss.nba_top_key_pct, ss.nba_break_right_pct, ss.nba_corner_right_pct,
+          ns.off_drib_fifteen_break_left_pct, ns.off_drib_fifteen_top_key_pct, ns.off_drib_fifteen_break_right_pct,
+          ns.off_drib_college_break_left_pct, ns.off_drib_college_top_key_pct, ns.off_drib_college_break_right_pct,
+          ns.on_move_fifteen_pct, ns.on_move_college_pct
           FROM draft_combine_measurements m
           LEFT JOIN draft_combine_tests t ON t.person_id=m.person_id AND t.season=m.season
+          LEFT JOIN draft_combine_spot_shooting ss ON ss.person_id=m.person_id AND ss.season=m.season
+          LEFT JOIN draft_combine_non_stationary_shooting ns ON ns.person_id=m.person_id AND ns.season=m.season
           WHERE m.season=? ORDER BY m.player_name""", (season,)).fetchall()
         return [dict(row) for row in rows]
 
