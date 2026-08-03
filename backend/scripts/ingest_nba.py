@@ -62,6 +62,8 @@ def ingest_player_shooting_zones(person_id: int, season: str) -> int:
     rows = response.get_data_frames()[1].to_dict("records")
     with connect() as connection:
         for row in rows:
+            if not row.get("GROUP_VALUE"):
+                continue
             connection.execute("""INSERT INTO player_shooting_zones (person_id, season, zone, fga, fgm, fg_pct)
               VALUES (?, ?, ?, ?, ?, ?) ON CONFLICT(person_id, season, zone) DO UPDATE SET fga=excluded.fga, fgm=excluded.fgm, fg_pct=excluded.fg_pct""",
               (person_id, season, row.get("GROUP_VALUE"), row.get("FGA"), row.get("FGM"), row.get("FG_PCT")))

@@ -102,4 +102,5 @@ def ingested_player_detail(slug: str) -> dict | None:
         advanced = history[-1] if history else None
         measurements = connection.execute("SELECT * FROM draft_combine_measurements WHERE person_id = ? ORDER BY season DESC LIMIT 1", (person_id,)).fetchone()
         tests = connection.execute("SELECT * FROM draft_combine_tests WHERE person_id = ? ORDER BY season DESC LIMIT 1", (person_id,)).fetchone()
-        return {"player": dict(player), "advanced_season": dict(advanced) if advanced else None, "advanced_history": [dict(row) for row in history], "combine_measurements": dict(measurements) if measurements else None, "combine_tests": dict(tests) if tests else None}
+        shooting = connection.execute("SELECT zone, fga, fgm, fg_pct FROM player_shooting_zones WHERE person_id = ? AND season = ? ORDER BY fga DESC", (person_id, advanced["season"] if advanced else "")).fetchall()
+        return {"player": dict(player), "advanced_season": dict(advanced) if advanced else None, "advanced_history": [dict(row) for row in history], "shooting_zones": [dict(row) for row in shooting], "combine_measurements": dict(measurements) if measurements else None, "combine_tests": dict(tests) if tests else None}
