@@ -142,6 +142,9 @@ def team_context(team_code: str, player_slug: str | None = None) -> dict:
         payroll = connection.execute("SELECT COALESCE(SUM(current_salary), 0), COUNT(*) FROM player_contracts WHERE team_code=?", (team_code,)).fetchone()
         darko = connection.execute("""SELECT AVG(d.dpm), AVG(d.off_dpm), AVG(d.def_dpm)
           FROM darko_metrics d JOIN players p ON p.person_id=d.person_id WHERE p.team_name=?""", (team_code,)).fetchone()
+        contract_years = connection.execute("""SELECT y.season, SUM(y.salary) AS payroll
+          FROM contract_years y JOIN player_contracts c ON c.person_id=y.person_id
+          WHERE c.team_code=? GROUP BY y.season ORDER BY y.season""", (team_code,)).fetchall()
         shooting = connection.execute("""SELECT z.zone, SUM(z.fga) AS fga, SUM(z.fgm) AS fgm,
           CAST(SUM(z.fgm) AS REAL) / NULLIF(SUM(z.fga), 0) AS fg_pct
           FROM player_shooting_zones z JOIN players p ON p.person_id=z.person_id
@@ -152,7 +155,7 @@ def team_context(team_code: str, player_slug: str | None = None) -> dict:
             target = connection.execute("SELECT * FROM player_season_advanced_stats WHERE person_id=? AND season=?", (player["person_id"], season)).fetchone() if player else None
             if target and roster:
                 relative = {key: round(float(target[key] or 0) - float(averages[key] or 0), 3) for key in keys}
-        return {"team_code": team_code, "season": season, "roster_count": len(roster), "team_averages": averages, "player_delta": relative, "contract_payroll": payroll[0], "contracted_players": payroll[1], "shooting_zones": [dict(row) for row in shooting], "darko_averages": {"dpm": darko[0], "off_dpm": darko[1], "def_dpm": darko[2]}}
+        return {"team_code": team_code, "season": season, "roster_count": len(roster), "team_averages": averages, "player_delta": relative, "contract_payroll": payroll[0], "contracted_players": payroll[1], "contract_years": [dict(row) for row in contract_years], "shooting_zones": [dict(row) for row in shooting], "darko_averages": {"dpm": darko[0], "off_dpm": darko[1], "def_dpm": darko[2]}}
 
 
 def similar_ingested_players(person_id: int, season: str, limit: int = 5) -> list[dict]:

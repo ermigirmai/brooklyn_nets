@@ -10,13 +10,12 @@ export function DecisionDashboard({ detail, context }: Props) {
   const { player, advanced_season: season, advanced_history: history, contract, contract_years: years, shooting_zones: zones } = detail;
   const darko = detail.darko; const team = context?.team_code ?? "BKN";
   const avg = context?.team_averages ?? {};
-  const radar = [
-    ["PTS", season?.pts, avg.pts], ["AST", season?.ast, avg.ast], ["REB", season?.reb, avg.reb],
-    ["eFG%", season?.efg_pct ? season.efg_pct * 30 : 0, avg.efg_pct ? avg.efg_pct * 30 : 0],
-    ["NetRtg", (season?.net_rating ?? 0) + 15, (avg.net_rating ?? 0) + 15], ["PIE", (season?.pie ?? 0) * 100, (avg.pie ?? 0) * 100],
-  ].map(([metric, playerValue, teamValue]) => ({ metric, player: Number(playerValue ?? 0), team: Number(teamValue ?? 0) }));
+  const relative = (playerValue: number, teamValue: number, signed = false) => signed ? 100 + (playerValue - teamValue) * 8 : teamValue ? (playerValue / teamValue) * 100 : 100;
+  const radar = [["PTS", season?.pts ?? 0, avg.pts ?? 0], ["AST", season?.ast ?? 0, avg.ast ?? 0], ["REB", season?.reb ?? 0, avg.reb ?? 0], ["eFG%", season?.efg_pct ?? 0, avg.efg_pct ?? 0], ["NetRtg", season?.net_rating ?? 0, avg.net_rating ?? 0], ["PIE", season?.pie ?? 0, avg.pie ?? 0]].map(([metric, playerValue, teamValue]) => ({ metric, player: relative(Number(playerValue), Number(teamValue), metric === "NetRtg"), team: 100 }));
   const impact = history.map((row: any) => ({ season: row.season, net: row.net_rating, pie: row.pie == null ? null : row.pie * 100 }));
-  const cap = years.map((row: any) => ({ season: row.season, player: row.salary / 1_000_000, team: Math.max(0, (context?.contract_payroll ?? 0) / 1_000_000 - row.salary / 1_000_000), tax: 188, first: 196, second: 207 }));
+  const teamPayroll = Object.fromEntries((context?.contract_years ?? []).map((row: any) => [row.season, row.payroll]));
+  const playerSalary = Object.fromEntries(years.map((row: any) => [row.season, row.salary]));
+  const cap = ["2026-27", "2027-28", "2028-29", "2029-30"].map((season) => ({ season, player: (playerSalary[season] ?? 0) / 1_000_000, team: Math.max(0, ((teamPayroll[season] ?? 0) - (playerSalary[season] ?? 0)) / 1_000_000), tax: 188, first: 196, second: 207 }));
   return <div className="space-y-7">
     <section className="grid gap-5 xl:grid-cols-[460px_1fr]">
       <article className="border border-white/10 bg-[#121212] p-6"><div className="flex gap-5"><img src={player.headshot_url} alt={player.full_name} className="h-28 w-28 object-cover object-top" /><div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-white/45">Player evaluation</p><h1 className="mt-2 text-4xl font-black tracking-[-.07em]">{player.full_name}</h1><p className="mt-2 text-sm text-white/55">{player.team_name} · {player.position || "—"}</p><p className="mt-1 text-xs text-white/40">{player.height || "—"} · {player.weight || "—"}</p></div></div></article>
