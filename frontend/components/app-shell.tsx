@@ -8,7 +8,7 @@ const navItems = [
   { label: "Reports", glyph: "03" },
 ];
 
-export function AppShell({ children, onNavigate }: Readonly<{ children: React.ReactNode; onNavigate?: (label: string) => void }>) {
+export function AppShell({ children, onNavigate, userName }: Readonly<{ children: React.ReactNode; onNavigate?: (label: string) => void; userName: string }>) {
   const [activeNav, setActiveNav] = useState("Evaluate");
   const [collapsed, setCollapsed] = useState(false);
 
@@ -38,7 +38,7 @@ export function AppShell({ children, onNavigate }: Readonly<{ children: React.Re
       <div className={`transition-[padding] duration-200 ${collapsed ? "lg:pl-[72px]" : "lg:pl-[232px]"}`}>
         <header className="relative flex h-[72px] items-center justify-center border-b border-white/10 bg-[#0c0c0c] px-5 md:px-8">
           <p className="text-lg font-black tracking-[-.06em]">BROOOOOOOOOK-LYNNNN!</p>
-          <p className="absolute right-5 text-sm text-white/55 md:right-8">Hi, <span className="font-bold text-white">Ermi</span></p>
+          <p className="absolute right-5 text-sm text-white/55 md:right-8">Hi, <span className="font-bold text-white">{userName}</span></p>
         </header>
         {children}
       </div>

@@ -1,0 +1,11 @@
+"use client";
+
+import { FormEvent, useEffect, useState } from "react";
+
+export function LoginScreen({ onLogin }: { onLogin: (name: string) => void }) {
+  const [opened, setOpened] = useState(false);
+  const [name, setName] = useState("");
+  useEffect(() => { const timer = window.setTimeout(() => setOpened(true), 700); return () => window.clearTimeout(timer); }, []);
+  function submit(event: FormEvent<HTMLFormElement>) { event.preventDefault(); onLogin(name.trim() || "Analyst"); }
+  return <main className="grid min-h-screen place-items-center bg-[#f4f3ee] px-5 text-[#111]"><section className="w-full max-w-sm"><div className="relative mx-auto h-36 w-36"><img src="/brand/brooklyn-nets-primary.svg" alt="Brooklyn Nets" className={`absolute inset-0 h-full w-full object-contain transition duration-700 ${opened ? "-translate-x-10 opacity-0" : "translate-x-0 opacity-100"}`} style={{ clipPath: "inset(0 50% 0 0)" }} /><img src="/brand/brooklyn-nets-primary.svg" alt="" className={`absolute inset-0 h-full w-full object-contain transition duration-700 ${opened ? "translate-x-10 opacity-0" : "translate-x-0 opacity-100"}`} style={{ clipPath: "inset(0 0 0 50%)" }} /></div><form onSubmit={submit} className={`mt-8 border-t border-black/15 pt-6 transition duration-500 ${opened ? "translate-y-0 opacity-100" : "translate-y-4 opacity-0"}`}><p className="text-[10px] font-bold uppercase tracking-[.18em] text-black/45">Brooklyn Nets</p><h1 className="mt-2 text-3xl font-black tracking-[-.07em]">Welcome in.</h1><label className="mt-7 block text-[10px] font-bold uppercase tracking-[.16em] text-black/45">Username<input autoFocus value={name} onChange={(event) => setName(event.target.value)} placeholder="Enter your name" className="mt-2 w-full border-b border-black/30 bg-transparent px-0 py-3 text-lg font-bold outline-none placeholder:text-black/30 focus:border-black" /></label><button type="submit" className="mt-7 w-full bg-[#111] px-4 py-4 text-xs font-black uppercase tracking-[.14em] text-white transition hover:bg-[#e84b37]">Enter workspace</button><p className="mt-3 text-center text-xs text-black/45">Internal analytics access</p></form></section></main>;
+}
