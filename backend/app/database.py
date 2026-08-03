@@ -96,6 +96,11 @@ def initialize() -> None:
           early_termination_option INTEGER NOT NULL DEFAULT 0,
           PRIMARY KEY (person_id, season)
         );
+        CREATE TABLE IF NOT EXISTS darko_metrics (
+          person_id INTEGER PRIMARY KEY,
+          dpm REAL, off_dpm REAL, def_dpm REAL, fair_salary REAL, salary REAL,
+          surplus REAL, as_of_date TEXT NOT NULL, source_url TEXT NOT NULL
+        );
         """)
         for column in ("pts REAL", "ast REAL", "reb REAL", "efg_pct REAL"):
             try:
@@ -173,4 +178,5 @@ def ingested_player_detail(slug: str) -> dict | None:
         shooting = connection.execute("SELECT zone, fga, fgm, fg_pct FROM player_shooting_zones WHERE person_id = ? AND season = ? ORDER BY fga DESC", (person_id, advanced["season"] if advanced else "")).fetchall()
         contract = connection.execute("SELECT * FROM player_contracts WHERE person_id = ?", (person_id,)).fetchone()
         contract_years = connection.execute("SELECT * FROM contract_years WHERE person_id = ? ORDER BY season", (person_id,)).fetchall()
-        return {"player": dict(player), "advanced_season": dict(advanced) if advanced else None, "advanced_history": [dict(row) for row in history], "similar_players": similar_ingested_players(person_id, advanced["season"]) if advanced else [], "shooting_zones": [dict(row) for row in shooting], "combine_measurements": dict(measurements) if measurements else None, "combine_tests": dict(tests) if tests else None, "contract": dict(contract) if contract else None, "contract_years": [dict(row) for row in contract_years]}
+        darko = connection.execute("SELECT * FROM darko_metrics WHERE person_id = ?", (person_id,)).fetchone()
+        return {"player": dict(player), "advanced_season": dict(advanced) if advanced else None, "advanced_history": [dict(row) for row in history], "similar_players": similar_ingested_players(person_id, advanced["season"]) if advanced else [], "shooting_zones": [dict(row) for row in shooting], "combine_measurements": dict(measurements) if measurements else None, "combine_tests": dict(tests) if tests else None, "contract": dict(contract) if contract else None, "contract_years": [dict(row) for row in contract_years], "darko": dict(darko) if darko else None}
