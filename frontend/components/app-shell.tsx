@@ -8,7 +8,7 @@ const navItems = [
   { label: "Reports", glyph: "03" },
 ];
 
-export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) {
+export function AppShell({ children, onNavigate }: Readonly<{ children: React.ReactNode; onNavigate?: (label: string) => void }>) {
   const [activeNav, setActiveNav] = useState("Evaluate");
   const [collapsed, setCollapsed] = useState(false);
 
@@ -22,7 +22,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
 
         <nav className={`mt-12 ${collapsed ? "px-2" : "px-3"}`}>
           {navItems.map((item) => (
-            <button key={item.label} title={collapsed ? item.label : undefined} onClick={() => setActiveNav(item.label)} className={`mb-1 flex w-full items-center border-l-2 py-3 text-left text-sm transition ${collapsed ? "justify-center px-2" : "gap-4 px-4"} ${activeNav === item.label ? "border-white bg-white/[0.06] font-bold text-white" : "border-transparent text-white/50 hover:bg-white/[0.04] hover:text-white"}`}>
+            <button key={item.label} title={collapsed ? item.label : undefined} onClick={() => { setActiveNav(item.label); onNavigate?.(item.label); }} className={`mb-1 flex w-full items-center border-l-2 py-3 text-left text-sm transition ${collapsed ? "justify-center px-2" : "gap-4 px-4"} ${activeNav === item.label ? "border-white bg-white/[0.06] font-bold text-white" : "border-transparent text-white/50 hover:bg-white/[0.04] hover:text-white"}`}>
               <span className="font-mono text-[10px] text-white/35">{item.glyph}</span>{!collapsed && item.label}
             </button>
           ))}
