@@ -2,6 +2,7 @@
 
 import Link from "next/link";
 import { useState } from "react";
+import { PlayerSearch } from "./player-search";
 
 const navItems = [
   { label: "Evaluate", glyph: "01", active: true },
@@ -45,7 +46,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
       <div className="lg:pl-[232px]">
         <header className="flex h-[72px] items-center justify-between border-b border-white/10 bg-[#0c0c0c] px-5 md:px-8">
           <img src="/brand/bklyn-nets-city-edition.png" alt="BKL​YN NETS City Edition" className="h-9 w-[76px] object-cover lg:hidden" />
-          <div className="hidden items-center gap-3 rounded-sm border border-white/10 bg-white/[0.03] px-3 py-2 text-xs text-white/40 md:flex"><span className="font-mono text-[#e3b941]">⌘ K</span><span>Search players, teams, metrics…</span></div>
+          <PlayerSearch />
           <div className="flex items-center gap-4 text-xs text-white/50"><span className="hidden sm:inline">2025–26 City Edition</span><img src="/brand/bklyn-nets-city-edition.png" alt="BKL​YN NETS City Edition" className="h-8 w-[68px] object-cover" /></div>
         </header>
         {children}
