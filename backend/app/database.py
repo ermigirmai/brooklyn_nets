@@ -134,7 +134,7 @@ def team_context(team_code: str, player_slug: str | None = None) -> dict:
         team_code = team_code.upper()
         season_row = connection.execute("SELECT season FROM player_season_advanced_stats ORDER BY season DESC LIMIT 1").fetchone()
         season = season_row["season"] if season_row else ""
-        roster = connection.execute("""SELECT p.person_id, p.full_name, s.off_rating, s.def_rating, s.net_rating, s.usage_pct, s.ts_pct
+        roster = connection.execute("""SELECT p.person_id, p.full_name, s.pts, s.ast, s.reb, s.efg_pct, s.off_rating, s.def_rating, s.net_rating, s.usage_pct, s.ts_pct, s.pie
           FROM players p JOIN player_season_advanced_stats s ON s.person_id=p.person_id
           WHERE p.team_name=? AND s.season=?""", (team_code, season)).fetchall()
         keys = ("pts", "ast", "reb", "efg_pct", "off_rating", "def_rating", "net_rating", "usage_pct", "ts_pct", "pie")
