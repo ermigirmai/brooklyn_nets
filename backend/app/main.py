@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import data_status, ingested_player_detail, initialize, search_ingested_players, team_context
+from app.database import combine_prospects, data_status, ingested_player_detail, initialize, search_ingested_players, team_context
 from app.repository import get_player, search_players
 from app.schemas import PlayerEvaluation, PlayerSearchResult
 
@@ -29,6 +29,11 @@ def health() -> dict[str, str]:
 @app.get("/api/v1/data-status")
 def database_status() -> dict[str, int]:
     return data_status()
+
+
+@app.get("/api/v1/combine-prospects")
+def draft_combine_prospects(season: str = Query(default="2024-25", pattern=r"^\d{4}-\d{2}$")) -> list[dict]:
+    return combine_prospects(season)
 
 
 @app.get("/api/v1/ingested-players/{slug}")

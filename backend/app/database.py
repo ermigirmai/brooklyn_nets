@@ -134,6 +134,18 @@ def search_ingested_players(query: str, limit: int = 12) -> list[sqlite3.Row]:
           WHERE full_name LIKE ? ORDER BY full_name LIMIT ?""", (f"%{query}%", limit)).fetchall()
 
 
+def combine_prospects(season: str) -> list[dict]:
+    """Return one combine profile per prospect for a selected draft class."""
+    with connect() as connection:
+        rows = connection.execute("""SELECT m.person_id, m.season, m.player_name,
+          m.height_wo_shoes, m.weight, m.wingspan, m.standing_reach, m.body_fat_pct,
+          t.standing_vertical, t.max_vertical, t.lane_agility, t.three_quarter_sprint, t.bench_press
+          FROM draft_combine_measurements m
+          LEFT JOIN draft_combine_tests t ON t.person_id=m.person_id AND t.season=m.season
+          WHERE m.season=? ORDER BY m.player_name""", (season,)).fetchall()
+        return [dict(row) for row in rows]
+
+
 def team_context(team_code: str, player_slug: str | None = None) -> dict:
     with connect() as connection:
         team_code = team_code.upper()
