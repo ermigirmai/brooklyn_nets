@@ -101,6 +101,11 @@ def initialize() -> None:
           dpm REAL, off_dpm REAL, def_dpm REAL, fair_salary REAL, salary REAL,
           surplus REAL, as_of_date TEXT NOT NULL, source_url TEXT NOT NULL
         );
+        CREATE TABLE IF NOT EXISTS team_payrolls (
+          team_code TEXT NOT NULL, season TEXT NOT NULL, payroll INTEGER NOT NULL,
+          as_of_date TEXT NOT NULL, source_url TEXT NOT NULL,
+          PRIMARY KEY (team_code, season)
+        );
         """)
         for column in ("pts REAL", "ast REAL", "reb REAL", "oreb REAL", "dreb REAL", "fg3_pct REAL", "ft_pct REAL", "stl REAL", "efg_pct REAL"):
             try:
@@ -142,9 +147,11 @@ def team_context(team_code: str, player_slug: str | None = None) -> dict:
         payroll = connection.execute("SELECT COALESCE(SUM(current_salary), 0), COUNT(*) FROM player_contracts WHERE team_code=?", (team_code,)).fetchone()
         darko = connection.execute("""SELECT AVG(d.dpm), AVG(d.off_dpm), AVG(d.def_dpm)
           FROM darko_metrics d JOIN players p ON p.person_id=d.person_id WHERE p.team_name=?""", (team_code,)).fetchone()
-        contract_years = connection.execute("""SELECT y.season, SUM(y.salary) AS payroll
+        contract_years = connection.execute("""SELECT season, payroll FROM team_payrolls WHERE team_code=?
+          UNION ALL SELECT y.season, SUM(y.salary) AS payroll
           FROM contract_years y JOIN player_contracts c ON c.person_id=y.person_id
-          WHERE c.team_code=? GROUP BY y.season ORDER BY y.season""", (team_code,)).fetchall()
+          WHERE c.team_code=? AND NOT EXISTS (SELECT 1 FROM team_payrolls p WHERE p.team_code=? AND p.season=y.season)
+          GROUP BY y.season ORDER BY season""", (team_code, team_code, team_code)).fetchall()
         shooting = connection.execute("""SELECT z.zone, SUM(z.fga) AS fga, SUM(z.fgm) AS fgm,
           CAST(SUM(z.fgm) AS REAL) / NULLIF(SUM(z.fga), 0) AS fg_pct
           FROM player_shooting_zones z JOIN players p ON p.person_id=z.person_id
