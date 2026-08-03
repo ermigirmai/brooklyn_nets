@@ -10,8 +10,8 @@ export function DecisionDashboard({ detail, context }: Props) {
   const { player, advanced_season: season, advanced_history: history, contract, contract_years: years, shooting_zones: zones } = detail;
   const darko = detail.darko; const team = context?.team_code ?? "BKN";
   const avg = context?.team_averages ?? {};
-  const relative = (playerValue: number, teamValue: number, signed = false) => signed ? 100 + (playerValue - teamValue) * 8 : teamValue ? (playerValue / teamValue) * 100 : 100;
-  const radar = [["PPG", season?.pts ?? 0, avg.pts ?? 0], ["APG", season?.ast ?? 0, avg.ast ?? 0], ["OffRPG", season?.oreb ?? 0, avg.oreb ?? 0], ["DefRPG", season?.dreb ?? 0, avg.dreb ?? 0], ["3P%", season?.fg3_pct ?? 0, avg.fg3_pct ?? 0], ["FT%", season?.ft_pct ?? 0, avg.ft_pct ?? 0], ["STL", season?.stl ?? 0, avg.stl ?? 0]].map(([metric, playerValue, teamValue]) => ({ metric, player: relative(Number(playerValue), Number(teamValue), false), team: 100 }));
+  const percentile = context?.radar_percentiles ?? { player: {}, team: {} };
+  const radar = [["PPG", "pts"], ["APG", "ast"], ["OffRPG", "oreb"], ["DefRPG", "dreb"], ["3P%", "fg3_pct"], ["FT%", "ft_pct"], ["STL", "stl"]].map(([metric, key]) => ({ metric, player: Number(percentile.player?.[key] ?? 0), team: Number(percentile.team?.[key] ?? 0) }));
   const impact = history.map((row: any) => ({ season: row.season, net: row.net_rating, pie: row.pie == null ? null : row.pie * 100 }));
   const teamPayroll = Object.fromEntries((context?.contract_years ?? []).map((row: any) => [row.season, row.payroll]));
   const playerSalary = Object.fromEntries(years.map((row: any) => [row.season, row.salary]));

@@ -150,12 +150,19 @@ def team_context(team_code: str, player_slug: str | None = None) -> dict:
           FROM player_shooting_zones z JOIN players p ON p.person_id=z.person_id
           WHERE p.team_name=? AND z.season=? GROUP BY z.zone ORDER BY SUM(z.fga) DESC""", (team_code, season)).fetchall()
         relative = None
+        radar_percentiles = None
         if player_slug:
             player = connection.execute("SELECT person_id FROM players WHERE slug=?", (player_slug,)).fetchone()
             target = connection.execute("SELECT * FROM player_season_advanced_stats WHERE person_id=? AND season=?", (player["person_id"], season)).fetchone() if player else None
             if target and roster:
                 relative = {key: round(float(target[key] or 0) - float(averages[key] or 0), 3) for key in keys}
-        return {"team_code": team_code, "season": season, "roster_count": len(roster), "team_averages": averages, "player_delta": relative, "contract_payroll": payroll[0], "contracted_players": payroll[1], "contract_years": [dict(row) for row in contract_years], "shooting_zones": [dict(row) for row in shooting], "darko_averages": {"dpm": darko[0], "off_dpm": darko[1], "def_dpm": darko[2]}}
+                radar_keys = ("pts", "ast", "oreb", "dreb", "fg3_pct", "ft_pct", "stl")
+                league_rows = connection.execute(f"SELECT {', '.join(radar_keys)} FROM player_season_advanced_stats WHERE season=? AND min>=15", (season,)).fetchall()
+                def percentile(value: float, metric: str) -> float:
+                    values = [float(row[metric] or 0) for row in league_rows]
+                    return round(100 * sum(item <= value for item in values) / len(values), 1) if values else 0
+                radar_percentiles = {"player": {key: percentile(float(target[key] or 0), key) for key in radar_keys}, "team": {key: percentile(float(averages[key] or 0), key) for key in radar_keys}}
+        return {"team_code": team_code, "season": season, "roster_count": len(roster), "team_averages": averages, "player_delta": relative, "radar_percentiles": radar_percentiles, "contract_payroll": payroll[0], "contracted_players": payroll[1], "contract_years": [dict(row) for row in contract_years], "shooting_zones": [dict(row) for row in shooting], "darko_averages": {"dpm": darko[0], "off_dpm": darko[1], "def_dpm": darko[2]}}
 
 
 def similar_ingested_players(person_id: int, season: str, limit: int = 5) -> list[dict]:
