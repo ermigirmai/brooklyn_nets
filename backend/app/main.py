@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import data_status, ingested_player_detail, initialize, search_ingested_players
+from app.database import data_status, ingested_player_detail, initialize, search_ingested_players, team_context
 from app.repository import get_player, search_players
 from app.schemas import PlayerEvaluation, PlayerSearchResult
 
@@ -37,6 +37,11 @@ def ingested_player(slug: str) -> dict:
     if detail is None:
         raise HTTPException(status_code=404, detail="Ingested player not found")
     return detail
+
+
+@app.get("/api/v1/team-context/{team_code}")
+def selected_team_context(team_code: str, player_slug: str | None = None) -> dict:
+    return team_context(team_code, player_slug)
 
 
 @app.get("/api/v1/players", response_model=list[PlayerSearchResult])

@@ -11,6 +11,8 @@ from pathlib import Path
 sys.path.append(str(Path(__file__).resolve().parents[1]))
 from app.database import connect, initialize
 
+TEAM_CODES = {"atlanta-hawks":"ATL", "boston-celtics":"BOS", "brooklyn-nets":"BKN", "charlotte-hornets":"CHA", "chicago-bulls":"CHI", "cleveland-cavaliers":"CLE", "dallas-mavericks":"DAL", "denver-nuggets":"DEN", "detroit-pistons":"DET", "golden-state-warriors":"GSW", "houston-rockets":"HOU", "indiana-pacers":"IND", "los-angeles-clippers":"LAC", "los-angeles-lakers":"LAL", "memphis-grizzlies":"MEM", "miami-heat":"MIA", "milwaukee-bucks":"MIL", "minnesota-timberwolves":"MIN", "new-orleans-pelicans":"NOP", "new-york-knicks":"NYK", "oklahoma-city-thunder":"OKC", "orlando-magic":"ORL", "philadelphia-76ers":"PHI", "phoenix-suns":"PHX", "portland-trail-blazers":"POR", "sacramento-kings":"SAC", "san-antonio-spurs":"SAS", "toronto-raptors":"TOR", "utah-jazz":"UTA", "washington-wizards":"WAS"}
+
 
 def integer(value: str | None) -> int | None:
     return int(value) if value not in (None, "") else None
@@ -30,10 +32,10 @@ def import_contracts(path: Path) -> int:
         for row in rows:
             person_id = int(row["person_id"])
             connection.execute("""INSERT INTO player_contracts
-              (person_id, contract_type, total_value, guaranteed_value, current_salary, cap_hit, years_remaining, as_of_date, source, source_url)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-              ON CONFLICT(person_id) DO UPDATE SET contract_type=excluded.contract_type, total_value=excluded.total_value, guaranteed_value=excluded.guaranteed_value, current_salary=excluded.current_salary, cap_hit=excluded.cap_hit, years_remaining=excluded.years_remaining, as_of_date=excluded.as_of_date, source=excluded.source, source_url=excluded.source_url""",
-              (person_id, row["contract_type"], integer(row.get("total_value")), integer(row.get("guaranteed_value")), integer(row.get("current_salary")), integer(row.get("cap_hit")), integer(row.get("years_remaining")), row["as_of_date"], row["source"], row.get("source_url")))
+              (person_id, contract_type, total_value, guaranteed_value, current_salary, cap_hit, years_remaining, team_code, as_of_date, source, source_url)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(person_id) DO UPDATE SET contract_type=excluded.contract_type, total_value=excluded.total_value, guaranteed_value=excluded.guaranteed_value, current_salary=excluded.current_salary, cap_hit=excluded.cap_hit, years_remaining=excluded.years_remaining, team_code=excluded.team_code, as_of_date=excluded.as_of_date, source=excluded.source, source_url=excluded.source_url""",
+              (person_id, row["contract_type"], integer(row.get("total_value")), integer(row.get("guaranteed_value")), integer(row.get("current_salary")), integer(row.get("cap_hit")), integer(row.get("years_remaining")), TEAM_CODES.get((row.get("source_url") or "").rstrip("/").split("/")[-2]), row["as_of_date"], row["source"], row.get("source_url")))
             connection.execute("""INSERT INTO contract_years
               (person_id, season, salary, guaranteed, player_option, team_option, early_termination_option)
               VALUES (?, ?, ?, ?, ?, ?, ?)

@@ -11,7 +11,8 @@ const navItems = [
   { label: "Reports", glyph: "04" },
 ];
 
-export function AppShell({ children, onPlayerSelect }: Readonly<{ children: React.ReactNode; onPlayerSelect?: (slug: string) => void }>) {
+const teams = ["ATL","BOS","BKN","CHA","CHI","CLE","DAL","DEN","DET","GSW","HOU","IND","LAC","LAL","MEM","MIA","MIL","MIN","NOP","NYK","OKC","ORL","PHI","PHX","POR","SAC","SAS","TOR","UTA","WAS"];
+export function AppShell({ children, onPlayerSelect, team, onTeamChange }: Readonly<{ children: React.ReactNode; onPlayerSelect?: (slug: string) => void; team?: string; onTeamChange?: (team: string) => void }>) {
   const [activeNav, setActiveNav] = useState("Evaluate");
 
   return (
@@ -47,7 +48,7 @@ export function AppShell({ children, onPlayerSelect }: Readonly<{ children: Reac
         <header className="flex h-[72px] items-center justify-between border-b border-white/10 bg-[#0c0c0c] px-5 md:px-8">
           <img src="/brand/bklyn-nets-city-edition.png" alt="BKL​YN NETS City Edition" className="h-9 w-[76px] object-cover lg:hidden" />
           <PlayerSearch onSelect={onPlayerSelect} />
-          <div className="flex items-center gap-4 text-xs text-white/50"><span className="hidden sm:inline">2025–26 City Edition</span><img src="/brand/bklyn-nets-city-edition.png" alt="BKL​YN NETS City Edition" className="h-8 w-[68px] object-cover" /></div>
+          <div className="flex items-center gap-4 text-xs text-white/50"><select aria-label="Reference team" value={team} onChange={(e) => onTeamChange?.(e.target.value)} className="border border-white/15 bg-[#0c0c0c] px-2 py-1 text-xs text-white">{teams.map((code) => <option key={code}>{code}</option>)}</select><img src="/brand/bklyn-nets-city-edition.png" alt="BKL​YN NETS City Edition" className="h-8 w-[68px] object-cover" /></div>
         </header>
         {children}
       </div>

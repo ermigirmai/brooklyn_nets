@@ -81,6 +81,7 @@ def initialize() -> None:
           current_salary INTEGER,
           cap_hit INTEGER,
           years_remaining INTEGER,
+          team_code TEXT,
           as_of_date TEXT NOT NULL,
           source TEXT NOT NULL,
           source_url TEXT
@@ -96,6 +97,9 @@ def initialize() -> None:
           PRIMARY KEY (person_id, season)
         );
         """)
+        columns = {row["name"] for row in connection.execute("PRAGMA table_info(player_contracts)")}
+        if "team_code" not in columns:
+            connection.execute("ALTER TABLE player_contracts ADD COLUMN team_code TEXT")
 
 
 def data_status() -> dict[str, int]:
@@ -113,6 +117,26 @@ def search_ingested_players(query: str, limit: int = 12) -> list[sqlite3.Row]:
     with connect() as connection:
         return connection.execute("""SELECT slug, full_name, team_name, position FROM players
           WHERE full_name LIKE ? ORDER BY full_name LIMIT ?""", (f"%{query}%", limit)).fetchall()
+
+
+def team_context(team_code: str, player_slug: str | None = None) -> dict:
+    with connect() as connection:
+        team_code = team_code.upper()
+        season_row = connection.execute("SELECT season FROM player_season_advanced_stats ORDER BY season DESC LIMIT 1").fetchone()
+        season = season_row["season"] if season_row else ""
+        roster = connection.execute("""SELECT p.person_id, p.full_name, s.off_rating, s.def_rating, s.net_rating, s.usage_pct, s.ts_pct
+          FROM players p JOIN player_season_advanced_stats s ON s.person_id=p.person_id
+          WHERE p.team_name=? AND s.season=?""", (team_code, season)).fetchall()
+        keys = ("off_rating", "def_rating", "net_rating", "usage_pct", "ts_pct")
+        averages = {key: round(sum(float(row[key] or 0) for row in roster) / len(roster), 3) if roster else None for key in keys}
+        payroll = connection.execute("SELECT COALESCE(SUM(current_salary), 0), COUNT(*) FROM player_contracts WHERE team_code=?", (team_code,)).fetchone()
+        relative = None
+        if player_slug:
+            player = connection.execute("SELECT person_id FROM players WHERE slug=?", (player_slug,)).fetchone()
+            target = connection.execute("SELECT * FROM player_season_advanced_stats WHERE person_id=? AND season=?", (player["person_id"], season)).fetchone() if player else None
+            if target and roster:
+                relative = {key: round(float(target[key] or 0) - float(averages[key] or 0), 3) for key in keys}
+        return {"team_code": team_code, "season": season, "roster_count": len(roster), "team_averages": averages, "player_delta": relative, "contract_payroll": payroll[0], "contracted_players": payroll[1]}
 
 
 def similar_ingested_players(person_id: int, season: str, limit: int = 5) -> list[dict]:
