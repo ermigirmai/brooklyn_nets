@@ -42,6 +42,10 @@ guarantees, player/team options, ETO, contract type, source and as-of date.
 It intentionally contains no fabricated contracts. Before a live deployment,
 replace it with an appropriately licensed/reviewed source export.
 
+To generate the current team-balanced public-source CSV (top ten listed salaries
+per team), run `python scripts/ingest_hoopshype_contracts.py`, review
+`data/contracts_2026-27.csv`, then import it with `import_contracts.py`.
+
 ## Architecture and decisions
 
 See [architecture notes](docs/architecture.md). The project uses Next.js +
