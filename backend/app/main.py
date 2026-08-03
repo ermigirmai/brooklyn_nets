@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import data_status, ingested_player_detail
+from app.database import data_status, ingested_player_detail, search_ingested_players
 from app.repository import get_player, search_players
 from app.schemas import PlayerEvaluation, PlayerSearchResult
 
@@ -36,6 +36,9 @@ def ingested_player(slug: str) -> dict:
 
 @app.get("/api/v1/players", response_model=list[PlayerSearchResult])
 def players(q: str = Query(default="", max_length=80)) -> list[PlayerSearchResult]:
+    rows = search_ingested_players(q.strip())
+    if rows:
+        return [PlayerSearchResult(slug=row["slug"], name=row["full_name"], team=row["team_name"] or "NBA", position=row["position"] or "") for row in rows]
     return search_players(q)
 
 
