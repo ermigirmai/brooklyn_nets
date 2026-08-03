@@ -65,3 +65,19 @@ def initialize() -> None:
           PRIMARY KEY (person_id, season)
         );
         """)
+
+
+def data_status() -> dict[str, int]:
+    with connect() as connection:
+        return {
+            "players": connection.execute("SELECT COUNT(*) FROM players").fetchone()[0],
+            "advanced_stat_rows": connection.execute("SELECT COUNT(*) FROM player_season_advanced_stats").fetchone()[0],
+            "combine_measurements": connection.execute("SELECT COUNT(*) FROM draft_combine_measurements").fetchone()[0],
+            "combine_tests": connection.execute("SELECT COUNT(*) FROM draft_combine_tests").fetchone()[0],
+        }
+
+
+def search_ingested_players(query: str, limit: int = 12) -> list[sqlite3.Row]:
+    with connect() as connection:
+        return connection.execute("""SELECT slug, full_name, team_name, position FROM players
+          WHERE full_name LIKE ? ORDER BY full_name LIMIT ?""", (f"%{query}%", limit)).fetchall()
