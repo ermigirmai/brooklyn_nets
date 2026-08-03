@@ -5,7 +5,7 @@ import { Line, LineChart, ResponsiveContainer, Tooltip, XAxis, YAxis } from "rec
 import type { SeasonTrend } from "@/lib/types";
 
 const metrics = [
-  { key: "points", label: "PPG", color: "#ffffff", format: (value: number) => value.toFixed(1) },
+  { key: "points", label: "ORtg", color: "#ffffff", format: (value: number) => value.toFixed(1) },
   { key: "true_shooting", label: "TS%", color: "#cfcfcf", format: (value: number) => `${value.toFixed(1)}%` },
   { key: "usage", label: "USG%", color: "#a3a3a3", format: (value: number) => `${value.toFixed(1)}%` },
   { key: "minutes", label: "MPG", color: "#737373", format: (value: number) => value.toFixed(1) },
