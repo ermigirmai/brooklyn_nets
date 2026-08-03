@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState } from "react";
 
 const navItems = [
@@ -17,13 +16,7 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
     <div className="min-h-screen bg-[#090909] text-[#f4f3ee]">
       <aside className="fixed inset-y-0 left-0 z-20 hidden w-[232px] border-r border-white/10 bg-[#101010] lg:flex lg:flex-col">
         <div className="px-6 pt-7">
-          <Link href="/" className="block">
-            <div className="flex items-center gap-3">
-              <img src="/brand/bklyn-nets-city-edition.png" alt="BKL​YN NETS City Edition" className="h-12 w-[102px] object-cover" />
-              <p className="border-l border-white/15 pl-3 text-[9px] font-bold uppercase leading-4 tracking-[0.14em] text-white/45">Basketball<br />operations</p>
-            </div>
-          </Link>
-          <p className="mt-7 text-[10px] font-bold uppercase tracking-[0.16em] text-white/45">Player evaluation workspace</p>
+          <img src="/brand/bklyn-nets-city-edition.png" alt="BKL​YN NETS City Edition" className="h-12 w-[102px] object-cover" />
         </div>
 
         <nav className="mt-12 px-3">
@@ -37,7 +30,6 @@ export function AppShell({ children }: Readonly<{ children: React.ReactNode }>) 
         <div className="mt-auto border-t border-white/10 p-6">
           <div className="flex items-center gap-3">
             <div className="grid h-8 w-8 place-items-center rounded-full bg-[#e84b37] text-xs font-black">EA</div>
-            <div><p className="text-[10px] uppercase tracking-wider text-white/40">Analyst</p></div>
           </div>
         </div>
       </aside>
