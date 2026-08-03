@@ -43,6 +43,7 @@ def initialize() -> None:
           person_id INTEGER NOT NULL,
           season TEXT NOT NULL,
           player_name TEXT NOT NULL,
+          position TEXT,
           height_wo_shoes REAL,
           height_w_shoes REAL,
           weight REAL,
@@ -133,6 +134,9 @@ def initialize() -> None:
         test_columns = {row["name"] for row in connection.execute("PRAGMA table_info(draft_combine_tests)")}
         if "modified_lane_agility" not in test_columns:
             connection.execute("ALTER TABLE draft_combine_tests ADD COLUMN modified_lane_agility REAL")
+        measurement_columns = {row["name"] for row in connection.execute("PRAGMA table_info(draft_combine_measurements)")}
+        if "position" not in measurement_columns:
+            connection.execute("ALTER TABLE draft_combine_measurements ADD COLUMN position TEXT")
 
 
 def data_status() -> dict[str, int]:
@@ -155,7 +159,7 @@ def search_ingested_players(query: str, limit: int = 12) -> list[sqlite3.Row]:
 def combine_prospects(season: str) -> list[dict]:
     """Return one combine profile per prospect for a selected draft class."""
     with connect() as connection:
-        rows = connection.execute("""SELECT m.person_id, m.season, m.player_name,
+        rows = connection.execute("""SELECT m.person_id, m.season, m.player_name, m.position,
           m.height_wo_shoes, m.weight, m.wingspan, m.standing_reach, m.body_fat_pct,
           t.standing_vertical, t.max_vertical, t.lane_agility, t.modified_lane_agility, t.three_quarter_sprint, t.bench_press,
           ss.college_corner_left_pct, ss.college_break_left_pct, ss.college_top_key_pct, ss.college_break_right_pct, ss.college_corner_right_pct,

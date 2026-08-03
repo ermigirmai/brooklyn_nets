@@ -51,9 +51,9 @@ def ingest_combine(season: str) -> int:
     with connect() as connection:
         for row in rows:
             person_id, name = row["PLAYER_ID"], row["PLAYER_NAME"]
-            connection.execute("""INSERT INTO draft_combine_measurements
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(person_id, season) DO UPDATE SET player_name=excluded.player_name""",
-              (person_id, season, name, value(row, "HEIGHT_WO_SHOES"), value(row, "HEIGHT_W_SHOES"), value(row, "WEIGHT"), value(row, "WINGSPAN"), value(row, "STANDING_REACH"), value(row, "BODY_FAT_PCT"), value(row, "HAND_LENGTH"), value(row, "HAND_WIDTH")))
+            connection.execute("""INSERT INTO draft_combine_measurements (person_id, season, player_name, position, height_wo_shoes, height_w_shoes, weight, wingspan, standing_reach, body_fat_pct, hand_length, hand_width)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(person_id, season) DO UPDATE SET player_name=excluded.player_name, position=excluded.position""",
+              (person_id, season, name, value(row, "POSITION"), value(row, "HEIGHT_WO_SHOES"), value(row, "HEIGHT_W_SHOES"), value(row, "WEIGHT"), value(row, "WINGSPAN"), value(row, "STANDING_REACH"), value(row, "BODY_FAT_PCT"), value(row, "HAND_LENGTH"), value(row, "HAND_WIDTH")))
             connection.execute("""INSERT INTO draft_combine_tests (person_id, season, player_name, standing_vertical, max_vertical, lane_agility, three_quarter_sprint, bench_press)
               VALUES (?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(person_id, season) DO UPDATE SET player_name=excluded.player_name""",
               (person_id, season, name, value(row, "STANDING_VERTICAL_LEAP"), value(row, "MAX_VERTICAL_LEAP"), value(row, "LANE_AGILITY_TIME"), value(row, "THREE_QUARTER_SPRINT"), value(row, "BENCH_PRESS")))
