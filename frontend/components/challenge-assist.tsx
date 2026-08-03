@@ -4,7 +4,7 @@ import { useState } from "react";
 
 type CallKey = "out" | "reach" | "goal";
 const calls: Record<CallKey, { current: string; recommended: string; confidence: string; rationale: string; action: string }> = {
-  out: { current: "Out of bounds — Brooklyn possession", recommended: "Out of bounds — opponent possession", confidence: "91%", rationale: "Baseline and sideline views show the ball contacting Brooklyn #8 after the deflection.", action: "Challenge" },
+  out: { current: "Out of bounds — opponent possession", recommended: "Out of bounds — Brooklyn possession", confidence: "91%", rationale: "Baseline and sideline views show the ball contacting the opponent after Brooklyn #8’s deflection.", action: "Challenge" },
   reach: { current: "Reach-in foul — Brooklyn", recommended: "No foul — legal defensive contact", confidence: "84%", rationale: "Contact occurs after the ball is dislodged; the defender’s hand contacts the ball first.", action: "Challenge" },
   goal: { current: "Goaltending — Brooklyn", recommended: "Legal block — no goaltending", confidence: "88%", rationale: "Ball is rising at the point of contact and remains below the cylinder plane.", action: "Challenge" },
 };
