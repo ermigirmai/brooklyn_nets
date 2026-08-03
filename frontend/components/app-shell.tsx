@@ -38,7 +38,7 @@ export function AppShell({ children, onNavigate, userName }: Readonly<{ children
       <div className={`transition-[padding] duration-200 ${collapsed ? "lg:pl-[72px]" : "lg:pl-[232px]"}`}>
         <header className="relative flex h-[72px] items-center justify-center border-b border-white/10 bg-[#0c0c0c] px-5 md:px-8">
           <p className="text-lg font-black tracking-[-.06em]">BROOOOOOOOOK-LYNNNN!</p>
-          <p className="absolute right-5 text-sm text-white/55 md:right-8">Hi, <span className="font-bold text-white">{userName}</span></p>
+          <p className="absolute right-5 text-xl font-medium tracking-[-.03em] text-white/65 md:right-8 md:text-2xl">Hi, <span className="font-black text-white">{userName}</span></p>
         </header>
         {children}
       </div>
