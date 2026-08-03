@@ -102,7 +102,7 @@ def initialize() -> None:
           surplus REAL, as_of_date TEXT NOT NULL, source_url TEXT NOT NULL
         );
         """)
-        for column in ("pts REAL", "ast REAL", "reb REAL", "efg_pct REAL"):
+        for column in ("pts REAL", "ast REAL", "reb REAL", "oreb REAL", "dreb REAL", "fg3_pct REAL", "ft_pct REAL", "stl REAL", "efg_pct REAL"):
             try:
                 connection.execute(f"ALTER TABLE player_season_advanced_stats ADD COLUMN {column}")
             except sqlite3.OperationalError:
@@ -134,10 +134,10 @@ def team_context(team_code: str, player_slug: str | None = None) -> dict:
         team_code = team_code.upper()
         season_row = connection.execute("SELECT season FROM player_season_advanced_stats ORDER BY season DESC LIMIT 1").fetchone()
         season = season_row["season"] if season_row else ""
-        roster = connection.execute("""SELECT p.person_id, p.full_name, s.pts, s.ast, s.reb, s.efg_pct, s.off_rating, s.def_rating, s.net_rating, s.usage_pct, s.ts_pct, s.pie
+        roster = connection.execute("""SELECT p.person_id, p.full_name, s.pts, s.ast, s.reb, s.oreb, s.dreb, s.fg3_pct, s.ft_pct, s.stl, s.efg_pct, s.off_rating, s.def_rating, s.net_rating, s.usage_pct, s.ts_pct, s.pie
           FROM players p JOIN player_season_advanced_stats s ON s.person_id=p.person_id
-          WHERE p.team_name=? AND s.season=?""", (team_code, season)).fetchall()
-        keys = ("pts", "ast", "reb", "efg_pct", "off_rating", "def_rating", "net_rating", "usage_pct", "ts_pct", "pie")
+          WHERE p.team_name=? AND s.season=? ORDER BY s.min DESC LIMIT 5""", (team_code, season)).fetchall()
+        keys = ("pts", "ast", "reb", "oreb", "dreb", "fg3_pct", "ft_pct", "stl", "efg_pct", "off_rating", "def_rating", "net_rating", "usage_pct", "ts_pct", "pie")
         averages = {key: round(sum(float(row[key] or 0) for row in roster) / len(roster), 3) if roster else None for key in keys}
         payroll = connection.execute("SELECT COALESCE(SUM(current_salary), 0), COUNT(*) FROM player_contracts WHERE team_code=?", (team_code,)).fetchone()
         darko = connection.execute("""SELECT AVG(d.dpm), AVG(d.off_dpm), AVG(d.def_dpm)

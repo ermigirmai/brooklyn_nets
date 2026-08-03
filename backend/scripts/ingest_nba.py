@@ -38,10 +38,10 @@ def ingest_season_advanced(season: str) -> int:
             box = basic.get(person_id, {})
             efg = (box.get("FGM", 0) + 0.5 * box.get("FG3M", 0)) / box["FGA"] if box.get("FGA") else None
             connection.execute("""INSERT INTO player_season_advanced_stats
-              (person_id, season, gp, min, off_rating, def_rating, net_rating, usage_pct, ts_pct, pace, pie, pts, ast, reb, efg_pct)
-              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-              ON CONFLICT(person_id, season) DO UPDATE SET gp=excluded.gp, min=excluded.min, off_rating=excluded.off_rating, def_rating=excluded.def_rating, net_rating=excluded.net_rating, usage_pct=excluded.usage_pct, ts_pct=excluded.ts_pct, pace=excluded.pace, pie=excluded.pie, pts=excluded.pts, ast=excluded.ast, reb=excluded.reb, efg_pct=excluded.efg_pct""",
-              (person_id, season, value(row, "GP"), value(row, "MIN"), value(row, "OFF_RATING"), value(row, "DEF_RATING"), value(row, "NET_RATING"), value(row, "USG_PCT"), value(row, "TS_PCT"), value(row, "PACE"), value(row, "PIE"), value(box, "PTS"), value(box, "AST"), value(box, "REB"), efg))
+              (person_id, season, gp, min, off_rating, def_rating, net_rating, usage_pct, ts_pct, pace, pie, pts, ast, reb, oreb, dreb, fg3_pct, ft_pct, stl, efg_pct)
+              VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+              ON CONFLICT(person_id, season) DO UPDATE SET gp=excluded.gp, min=excluded.min, off_rating=excluded.off_rating, def_rating=excluded.def_rating, net_rating=excluded.net_rating, usage_pct=excluded.usage_pct, ts_pct=excluded.ts_pct, pace=excluded.pace, pie=excluded.pie, pts=excluded.pts, ast=excluded.ast, reb=excluded.reb, oreb=excluded.oreb, dreb=excluded.dreb, fg3_pct=excluded.fg3_pct, ft_pct=excluded.ft_pct, stl=excluded.stl, efg_pct=excluded.efg_pct""",
+              (person_id, season, value(row, "GP"), value(row, "MIN"), value(row, "OFF_RATING"), value(row, "DEF_RATING"), value(row, "NET_RATING"), value(row, "USG_PCT"), value(row, "TS_PCT"), value(row, "PACE"), value(row, "PIE"), value(box, "PTS"), value(box, "AST"), value(box, "REB"), value(box, "OREB"), value(box, "DREB"), value(box, "FG3_PCT"), value(box, "FT_PCT"), value(box, "STL"), efg))
     return len(rows)
 
 
