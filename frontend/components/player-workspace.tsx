@@ -9,7 +9,10 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-import { AppShell } from "@/components/app-shell";
+import {
+  AppShell,
+  type NavigationLabel,
+} from "@/components/app-shell";
 import { ChallengeAssist } from "@/components/challenge-assist";
 import { DecisionDashboard } from "@/components/decision-dashboard";
 import { LoginScreen } from "@/components/login-screen";
@@ -18,7 +21,7 @@ const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const DEFAULT_PLAYER_SLUG = "stephen-curry";
 const COMBINE_YEARS = ["2025-26", "2024-25", "2023-24", "2022-23", "2021-22"];
 
-type WorkspaceView = "evaluate" | "challenge" | "reports";
+type WorkspaceView = "evaluate" | "challenge" | "scouting" | "gameday";
 type EvaluationTab = "nba" | "combine";
 type PlayerDetail = { player: { slug: string }; [key: string]: unknown };
 type TeamContext = { team_code: string; [key: string]: unknown };
@@ -116,6 +119,13 @@ const COMBINE_SECTIONS: Array<{ title: string; metrics: CombineMetric[] }> = [
   },
 ];
 
+const WORKSPACE_VIEW_BY_NAVIGATION: Record<NavigationLabel, WorkspaceView> = {
+  Evaluate: "evaluate",
+  "Challenge Assist": "challenge",
+  Scouting: "scouting",
+  "Gameday Ops": "gameday",
+};
+
 async function fetchJson<T>(path: string): Promise<T | null> {
   const response = await fetch(`${API_BASE_URL}${path}`);
   return response.ok ? response.json() : null;
@@ -161,18 +171,10 @@ export function PlayerWorkspace() {
   return (
     <AppShell
       userName={userName}
-      onNavigate={(label) =>
-        setActiveView(
-          label === "Challenge Assist"
-            ? "challenge"
-            : label === "Reports"
-              ? "reports"
-              : "evaluate",
-        )
-      }
+      onNavigate={(label) => setActiveView(WORKSPACE_VIEW_BY_NAVIGATION[label])}
     >
       {activeView === "challenge" && <ChallengeAssist />}
-      {activeView === "reports" && (
+      {(activeView === "scouting" || activeView === "gameday") && (
         <main className="min-h-[calc(100vh-72px)]" />
       )}
       {activeView === "evaluate" && (

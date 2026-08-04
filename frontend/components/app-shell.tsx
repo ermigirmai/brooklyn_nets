@@ -3,11 +3,13 @@
 import { useState } from "react";
 
 const navItems = [
-  { label: "Evaluate", glyph: "01", active: true },
+  { label: "Evaluate", glyph: "01" },
   { label: "Challenge Assist", glyph: "02" },
   { label: "Scouting", glyph: "03" },
   { label: "Gameday Ops", glyph: "04" },
-];
+] as const;
+
+export type NavigationLabel = (typeof navItems)[number]["label"];
 
 export function AppShell({
   children,
@@ -15,7 +17,7 @@ export function AppShell({
   userName,
 }: Readonly<{
   children: React.ReactNode;
-  onNavigate?: (label: string) => void;
+  onNavigate?: (label: NavigationLabel) => void;
   userName: string;
 }>) {
   const [activeNav, setActiveNav] = useState("Evaluate");
