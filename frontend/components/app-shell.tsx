@@ -27,12 +27,6 @@ export function AppShell({ children, onNavigate, userName }: Readonly<{ children
             </button>
           ))}
         </nav>
-
-        <div className={`mt-auto border-t border-white/10 ${collapsed ? "p-5" : "p-6"}`}>
-          <div className={`flex ${collapsed ? "justify-center" : "items-center gap-3"}`}>
-            <div className="grid h-8 w-8 place-items-center rounded-full bg-[#e84b37] text-xs font-black">EA</div>
-          </div>
-        </div>
       </aside>
 
       <div className={`transition-[padding] duration-200 ${collapsed ? "lg:pl-[112px]" : "lg:pl-[232px]"}`}>
