@@ -1,40 +1,497 @@
 "use client";
 
-import { useEffect, useState } from "react";
-import { PolarAngleAxis, PolarGrid, Radar, RadarChart, ResponsiveContainer, Tooltip } from "recharts";
+import { useCallback, useEffect, useState } from "react";
+import {
+  PolarAngleAxis,
+  PolarGrid,
+  Radar,
+  RadarChart,
+  ResponsiveContainer,
+  Tooltip,
+} from "recharts";
 import { AppShell } from "@/components/app-shell";
-import { TrendChart } from "@/components/trend-chart";
-import { DecisionDashboard } from "@/components/decision-dashboard";
 import { ChallengeAssist } from "@/components/challenge-assist";
+import { DecisionDashboard } from "@/components/decision-dashboard";
 import { LoginScreen } from "@/components/login-screen";
 
-const API_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
-type Advanced = { season: string; gp: number; min: number; off_rating: number; def_rating: number; net_rating: number; usage_pct: number; ts_pct: number; pace: number; pie: number };
-type Detail = { player: { slug: string; full_name: string; team_name: string; position: string; height: string | null; weight: string | null; headshot_url: string }; advanced_season: Advanced | null; advanced_history: Advanced[]; similar_players: { slug: string; name: string; team: string; distance: number }[]; shooting_zones: { zone: string; fga: number; fgm: number; fg_pct: number }[]; combine_measurements: Record<string, string | number | null> | null; combine_tests: Record<string, string | number | null> | null; contract: { contract_type: string; current_salary: number | null; cap_hit: number | null; years_remaining: number | null; as_of_date: string; source: string } | null; contract_years: { season: string; salary: number | null; player_option: number; team_option: number; early_termination_option: number }[] };
-const stat = (value: number | null, digits = 1) => value == null ? "—" : value.toFixed(digits);
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
+const DEFAULT_PLAYER_SLUG = "stephen-curry";
+const COMBINE_YEARS = ["2025-26", "2024-25", "2023-24", "2022-23", "2021-22"];
 
-export function PlayerWorkspace() {
-  const [player, setPlayer] = useState<Detail | null>(null); const [loading, setLoading] = useState(true); const [team, setTeam] = useState("BKN"); const [tab, setTab] = useState<"nba" | "combine">("nba"); const [workspace, setWorkspace] = useState<"evaluate" | "challenge" | "reports">("evaluate"); const [userName, setUserName] = useState<string | null>(null); const [context, setContext] = useState<{ team_code: string; season: string; roster_count: number; team_averages: Record<string, number | null>; player_delta: Record<string, number> | null; contract_payroll: number; contracted_players: number } | null>(null);
-  async function selectPlayer(slug: string) { setLoading(true); try { const response = await fetch(`${API_URL}/api/v1/ingested-players/${slug}`); setPlayer(response.ok ? await response.json() : null); } finally { setLoading(false); } }
-  useEffect(() => { selectPlayer("stephen-curry"); }, []);
-  useEffect(() => { if (player) fetch(`${API_URL}/api/v1/team-context/${team}?player_slug=${player.player.slug}`).then((r) => r.ok ? r.json() : null).then(setContext).catch(() => setContext(null)); }, [team, player]);
-  if (!userName) return <LoginScreen onLogin={setUserName} />;
-  return <AppShell userName={userName} onNavigate={(label) => setWorkspace(label === "Challenge Assist" ? "challenge" : label === "Reports" ? "reports" : "evaluate")}>{workspace === "challenge" ? <ChallengeAssist /> : workspace === "reports" ? <main className="min-h-[calc(100vh-72px)]" /> : <main className="mx-auto max-w-[1460px] px-5 py-7 md:px-8 lg:px-10"><div className="mb-7 flex border-b border-white/10"><button onClick={() => setTab("nba")} className={`border-b-2 px-5 py-3 text-xs font-black uppercase tracking-[.14em] ${tab === "nba" ? "border-[#e84b37] text-white" : "border-transparent text-white/40 hover:text-white"}`}>NBA</button><button onClick={() => setTab("combine")} className={`border-b-2 px-5 py-3 text-xs font-black uppercase tracking-[.14em] ${tab === "combine" ? "border-[#e84b37] text-white" : "border-transparent text-white/40 hover:text-white"}`}>Draft combine</button></div>{tab === "nba" && <>{loading && <p className="py-24 text-center text-sm text-white/45">Loading NBA data…</p>}{player && <DecisionDashboard detail={player} context={context} onPlayerSelect={selectPlayer} onTeamChange={setTeam} />}</>}{tab === "combine" && <CombineWorkspace />}</main>}</AppShell>;
+type WorkspaceView = "evaluate" | "challenge" | "reports";
+type EvaluationTab = "nba" | "combine";
+type PlayerDetail = { player: { slug: string }; [key: string]: unknown };
+type TeamContext = { team_code: string; [key: string]: unknown };
+
+type CombineProspect = {
+  person_id: number;
+  player_name: string;
+  position: string | null;
+  [key: string]: string | number | null;
+};
+
+type CombineMetric = {
+  label: string;
+  key: string;
+  percent?: boolean;
+  inverse?: boolean;
+};
+
+type CombineChartPoint = CombineMetric & {
+  player: number | null;
+  classAverage: number;
+  rawValue: number | null;
+  averageValue: number | null;
+  playerName: string;
+};
+
+const COMBINE_SECTIONS: Array<{ title: string; metrics: CombineMetric[] }> = [
+  {
+    title: "Drill Results",
+    metrics: [
+      { label: "Stand vert", key: "standing_vertical" },
+      { label: "Max vert", key: "max_vertical" },
+      { label: "Lane agility", key: "lane_agility", inverse: true },
+      { label: "3/4 sprint", key: "three_quarter_sprint", inverse: true },
+      { label: "Bench", key: "bench_press" },
+    ],
+  },
+  {
+    title: "Spot Shooting Results",
+    metrics: [
+      {
+        label: "College corner L",
+        key: "college_corner_left_pct",
+        percent: true,
+      },
+      {
+        label: "College break L",
+        key: "college_break_left_pct",
+        percent: true,
+      },
+      { label: "College top", key: "college_top_key_pct", percent: true },
+      {
+        label: "College break R",
+        key: "college_break_right_pct",
+        percent: true,
+      },
+      {
+        label: "College corner R",
+        key: "college_corner_right_pct",
+        percent: true,
+      },
+    ],
+  },
+  {
+    title: "Non-Stationary Shooting Results",
+    metrics: [
+      {
+        label: "Off-drib 15 L",
+        key: "off_drib_fifteen_break_left_pct",
+        percent: true,
+      },
+      {
+        label: "Off-drib 15 top",
+        key: "off_drib_fifteen_top_key_pct",
+        percent: true,
+      },
+      {
+        label: "Off-drib 15 R",
+        key: "off_drib_fifteen_break_right_pct",
+        percent: true,
+      },
+      { label: "On move 15", key: "on_move_fifteen_pct", percent: true },
+      { label: "On move college", key: "on_move_college_pct", percent: true },
+    ],
+  },
+  {
+    title: "Medical Anthro Measurements",
+    metrics: [
+      { label: "Height", key: "height_wo_shoes" },
+      { label: "Weight", key: "weight" },
+      { label: "Wingspan", key: "wingspan" },
+      { label: "Stand reach", key: "standing_reach" },
+      { label: "Body fat", key: "body_fat_pct", inverse: true, percent: true },
+    ],
+  },
+];
+
+async function fetchJson<T>(path: string): Promise<T | null> {
+  const response = await fetch(`${API_BASE_URL}${path}`);
+  return response.ok ? response.json() : null;
 }
 
-type CombineProspect = { person_id: number; season: string; player_name: string; position: string | null; height_wo_shoes: number | null; weight: number | null; wingspan: number | null; standing_reach: number | null; body_fat_pct: number | null; standing_vertical: number | null; max_vertical: number | null; lane_agility: number | null; modified_lane_agility: number | null; three_quarter_sprint: number | null; bench_press: number | null; college_corner_left_pct: number | null; college_break_left_pct: number | null; college_top_key_pct: number | null; college_break_right_pct: number | null; college_corner_right_pct: number | null; nba_corner_left_pct: number | null; nba_break_left_pct: number | null; nba_top_key_pct: number | null; nba_break_right_pct: number | null; nba_corner_right_pct: number | null; off_drib_fifteen_break_left_pct: number | null; off_drib_fifteen_top_key_pct: number | null; off_drib_fifteen_break_right_pct: number | null; off_drib_college_break_left_pct: number | null; off_drib_college_top_key_pct: number | null; off_drib_college_break_right_pct: number | null; on_move_fifteen_pct: number | null; on_move_college_pct: number | null };
-const combineYears = ["2025-26", "2024-25", "2023-24", "2022-23", "2021-22"];
-const combineValue = (value: number | null) => value == null ? "—" : Number(value).toFixed(1);
-function CombineWorkspace() { const [season, setSeason] = useState(""); const [prospects, setProspects] = useState<CombineProspect[]>([]); const [selectedId, setSelectedId] = useState(""); const [loading, setLoading] = useState(false); const selected = prospects.find((prospect) => String(prospect.person_id) === selectedId) ?? null; useEffect(() => { if (!season) { setProspects([]); setSelectedId(""); return; } setLoading(true); fetch(`${API_URL}/api/v1/combine-prospects?season=${season}`).then((r) => r.ok ? r.json() : []).then((rows) => { setProspects(rows); setSelectedId(""); }).catch(() => { setProspects([]); setSelectedId(""); }).finally(() => setLoading(false)); }, [season]); return <section><div className="border border-white/10 bg-[#121212] p-5"><div><p className="text-[10px] font-bold uppercase tracking-[.16em] text-white/45">NBA Draft Combine</p><h1 className="mt-1 text-3xl font-black tracking-[-.06em]">Prospect evaluation</h1><p className="mt-2 text-sm text-white/50">Select a combine class, then a prospect to compare against class averages.</p></div><div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end"><label className="block sm:w-52"><span className="mb-2 block text-[10px] font-bold uppercase tracking-[.16em] text-white/45">Draft year</span><select value={season} onChange={(event) => setSeason(event.target.value)} className="w-full rounded-lg border border-white/15 bg-[#0b0b0b] px-3 py-3 text-sm font-bold text-white outline-none focus:border-[#e84b37]"><option value="">Select a draft year</option>{combineYears.map((year) => <option key={year}>{year}</option>)}</select></label><label className="block sm:w-80"><span className="mb-2 block text-[10px] font-bold uppercase tracking-[.16em] text-white/45">Prospect</span><select value={selectedId} disabled={!season || loading} onChange={(event) => setSelectedId(event.target.value)} className="w-full rounded-lg border border-white/15 bg-[#0b0b0b] px-3 py-3 text-sm font-bold text-white outline-none disabled:cursor-not-allowed disabled:opacity-40 focus:border-[#e84b37]"><option value="">{loading ? "Loading prospects…" : season ? "Select a prospect" : "Select a draft year first"}</option>{prospects.map((prospect) => <option key={prospect.person_id} value={prospect.person_id}>{prospect.player_name}</option>)}</select></label></div></div>{loading && <p className="py-24 text-center text-sm text-white/45">Loading combine class…</p>}{!loading && selected && <div className="mt-5"><CombineProfile prospect={selected} prospects={prospects} /></div>}{!loading && season && !selected && <p className="py-20 text-center text-sm text-white/45">Select a prospect to open their combine evaluation.</p>}</section>; }
-type CombineMetric = { label: string; key: keyof CombineProspect; inverse?: boolean; percent?: boolean };
-function CombineProfile({ prospect, prospects }: { prospect: CombineProspect; prospects: CombineProspect[] }) { const sections: { title: string; metrics: CombineMetric[] }[] = [{ title: "Drill Results", metrics: [{ label: "Stand vert", key: "standing_vertical" }, { label: "Max vert", key: "max_vertical" }, { label: "Lane agility", key: "lane_agility", inverse: true }, { label: "3/4 sprint", key: "three_quarter_sprint", inverse: true }, { label: "Bench", key: "bench_press" }] }, { title: "Spot Shooting Results", metrics: [{ label: "College corner L", key: "college_corner_left_pct", percent: true }, { label: "College break L", key: "college_break_left_pct", percent: true }, { label: "College top", key: "college_top_key_pct", percent: true }, { label: "College break R", key: "college_break_right_pct", percent: true }, { label: "College corner R", key: "college_corner_right_pct", percent: true }] }, { title: "Non-Stationary Shooting Results", metrics: [{ label: "Off-drib 15 L", key: "off_drib_fifteen_break_left_pct", percent: true }, { label: "Off-drib 15 top", key: "off_drib_fifteen_top_key_pct", percent: true }, { label: "Off-drib 15 R", key: "off_drib_fifteen_break_right_pct", percent: true }, { label: "On move 15", key: "on_move_fifteen_pct", percent: true }, { label: "On move college", key: "on_move_college_pct", percent: true }] }, { title: "Medical Anthro Measurements", metrics: [{ label: "Height", key: "height_wo_shoes" }, { label: "Weight", key: "weight" }, { label: "Wingspan", key: "wingspan" }, { label: "Stand reach", key: "standing_reach" }, { label: "Body fat", key: "body_fat_pct", inverse: true, percent: true }] }]; const chartData = (metrics: CombineMetric[]) => metrics.map((metric) => { const values = prospects.map((item) => item[metric.key] == null ? Number.NaN : Number(item[metric.key])).filter(Number.isFinite); const average = values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : 0; const sourceValue = prospect[metric.key]; const playerValue = sourceValue == null ? Number.NaN : Number(sourceValue); const playerRelative = Number.isFinite(playerValue) && average ? (metric.inverse ? average / playerValue : playerValue / average) * 100 : null; return { ...metric, player: playerRelative == null ? null : Math.min(playerRelative, 160), average: 100, raw: Number.isFinite(playerValue) ? playerValue : null, classAverage: average || null, playerName: prospect.player_name }; }); return <div><div className="w-full max-w-sm border border-white/10 bg-[#121212] p-5"><h2 className="text-3xl font-black tracking-[-.07em]">{prospect.player_name}</h2><div className="mt-4 border-t border-white/10 pt-3"><p className="text-[10px] font-bold uppercase tracking-[.14em] text-white/40">Position</p><p className="mt-1 text-sm font-bold">{prospect.position ?? "N/A"}</p></div></div><div className="mt-5 grid gap-5 xl:grid-cols-2">{sections.map((section) => <CombineSection key={section.title} title={section.title} data={chartData(section.metrics)} />)}</div></div>; }
-function CombineSection({ title, data }: { title: string; data: { label: string; player: number | null; average: number; raw: number | null; classAverage: number | null; playerName: string; percent?: boolean }[] }) { return <article className="border border-white/10 bg-[#121212] p-5"><h3 className="text-xs font-bold uppercase tracking-[.12em] text-white/55">{title}</h3><ResponsiveContainer width="100%" height={300}><RadarChart data={data}><PolarGrid stroke="#ffffff22" /><PolarAngleAxis dataKey="label" tick={{ fill: "#ffffff99", fontSize: 10 }} /><Radar name="Prospect" dataKey="player" stroke="#f4f3ee" fill="#f4f3ee" fillOpacity={.2} /><Radar name="Class average" dataKey="average" stroke="#e84b37" fill="#e84b37" fillOpacity={.12} /><Tooltip content={<CombineTooltip />} /></RadarChart></ResponsiveContainer><div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-white/10 pt-3 text-xs">{data.map((metric) => <div key={metric.label} className="flex justify-between gap-2"><span className="text-white/45">{metric.label}</span><b>{metric.raw == null ? "N/A" : `${metric.raw.toFixed(1)}${metric.percent ? "%" : ""}`}</b></div>)}</div></article>; }
-function CombineTooltip({ active, payload }: any) { if (!active || !payload?.length) return null; const item = payload[0].payload; const unit = item.percent ? "%" : ""; return <div className="border border-white/20 bg-[#101010] p-3 text-xs text-white shadow-xl"><b>{item.label}</b><p className="mt-1 text-white/70">{item.playerName}: {item.raw == null ? "N/A" : `${item.raw.toFixed(1)}${unit}`}</p><p className="text-white/70">Class average: {item.classAverage == null ? "—" : `${item.classAverage.toFixed(1)}${unit}`}</p></div>; }
+export function PlayerWorkspace() {
+  const [userName, setUserName] = useState<string | null>(null);
+  const [activeView, setActiveView] = useState<WorkspaceView>("evaluate");
+  const [activeTab, setActiveTab] = useState<EvaluationTab>("nba");
+  const [selectedPlayer, setSelectedPlayer] = useState<PlayerDetail | null>(
+    null,
+  );
+  const [comparisonTeam, setComparisonTeam] = useState("BKN");
+  const [teamContext, setTeamContext] = useState<TeamContext | null>(null);
+  const [isPlayerLoading, setIsPlayerLoading] = useState(true);
 
-function TeamContext({ context }: { context: NonNullable<PlayerWorkspaceContext> }) { const money = `$${(context.contract_payroll / 1_000_000).toFixed(1)}M`; const delta = context.player_delta?.net_rating; return <section className="mb-5 border border-white/10 bg-[#121212] p-5"><div className="flex flex-wrap items-end justify-between gap-3"><div><p className="text-[10px] font-bold uppercase tracking-[0.14em] text-white/45">Selected team context</p><h2 className="mt-1 text-xl font-black">{context.team_code} · {context.season}</h2></div><p className="text-sm text-white/60">{context.roster_count} rostered players · {context.contracted_players} contract records · {money} listed payroll</p></div><div className="mt-4 flex gap-6 text-xs text-white/55"><span>Team avg NetRtg: <b className="text-white">{context.team_averages.net_rating?.toFixed(1) ?? "—"}</b></span><span>Selected player delta: <b className="text-white">{delta == null ? "—" : `${delta > 0 ? "+" : ""}${delta.toFixed(1)}`}</b></span></div></section>; }
-type PlayerWorkspaceContext = { team_code: string; season: string; roster_count: number; team_averages: Record<string, number | null>; player_delta: Record<string, number> | null; contract_payroll: number; contracted_players: number } | null;
+  const loadPlayer = useCallback(async (slug: string) => {
+    setIsPlayerLoading(true);
+    try {
+      setSelectedPlayer(
+        await fetchJson<PlayerDetail>(`/api/v1/ingested-players/${slug}`),
+      );
+    } finally {
+      setIsPlayerLoading(false);
+    }
+  }, []);
 
-function Profile({ detail, onSelect }: { detail: Detail; onSelect: (slug: string) => void }) { const { player, advanced_season: advanced, combine_measurements: measure, combine_tests: tests } = detail; const trends = detail.advanced_history.map((row) => ({ season: row.season, points: row.off_rating, true_shooting: row.ts_pct * 100, usage: row.usage_pct * 100, minutes: row.min })); const money = (value: number | null) => value == null ? "—" : `$${(value / 1_000_000).toFixed(1)}M`; return <><header className="border border-white/10 bg-[#121212] p-6 md:p-8"><div className="flex items-center gap-6"><img src={player.headshot_url} alt={player.full_name} className="h-32 w-32 object-cover object-top" /><div><img src="/brand/bklyn-nets-city-edition.png" alt="BKL​YN NETS City Edition" className="h-9 w-[78px] object-cover" /><h1 className="mt-4 text-5xl font-black tracking-[-0.075em]">{player.full_name}</h1><p className="mt-2 text-sm text-white/55">{player.team_name} · {player.position || "—"} · {player.height || "—"} · {player.weight || "—"}</p></div></div></header>{advanced && <section className="mt-5 grid gap-px border border-white/10 bg-white/10 md:grid-cols-4">{[["Offensive rating", stat(advanced.off_rating)], ["Defensive rating", stat(advanced.def_rating)], ["Net rating", stat(advanced.net_rating)], ["True shooting", `${stat(advanced.ts_pct * 100)}%`]].map(([label, value]) => <article key={label} className="bg-[#121212] p-5"><p className="text-[10px] font-bold uppercase tracking-wider text-white/45">{label}</p><p className="mt-4 text-3xl font-black">{value}</p><p className="mt-2 text-xs text-white/40">{advanced.season} · {advanced.gp} GP</p></article>)}</section>}<div className="mt-5"><TrendChart seasons={trends} /></div><section className="mt-5 grid gap-5 md:grid-cols-2"><SimilarPlayers players={detail.similar_players} onSelect={onSelect} /><ContractCard contract={detail.contract} years={detail.contract_years} money={money} /></section>{detail.shooting_zones.length > 0 && <section className="mt-5 border border-white/10 bg-[#121212] p-6"><h2 className="text-sm font-black uppercase tracking-[0.12em]">Shooting zones</h2><div className="mt-5 grid gap-px bg-white/10 md:grid-cols-5">{detail.shooting_zones.slice(0, 5).map((zone) => <article key={zone.zone} className="bg-[#121212] p-4"><p className="text-[10px] text-white/45">{zone.zone}</p><p className="mt-3 text-2xl font-black">{(zone.fg_pct * 100).toFixed(1)}%</p><p className="mt-1 text-[10px] text-white/40">{zone.fgm}/{zone.fga} FG</p></article>)}</div></section>}<section className="mt-5 grid gap-5 md:grid-cols-2">{measure && <DataCard title="Draft combine measurements" data={measure} fields={["height_wo_shoes", "weight", "wingspan", "standing_reach", "body_fat_pct"]} />}{tests && <DataCard title="Draft combine testing" data={tests} fields={["standing_vertical", "max_vertical", "lane_agility", "three_quarter_sprint", "bench_press"]} />}</section></>; }
-function SimilarPlayers({ players, onSelect }: { players: Detail["similar_players"]; onSelect: (slug: string) => void }) { return <article className="border border-white/10 bg-[#121212] p-6"><h2 className="text-sm font-black uppercase tracking-[0.12em]">Similar players</h2><p className="mt-2 text-xs text-white/45">Same-season advanced-profile similarity, normalized by league variation.</p><div className="mt-4 space-y-2">{players.map((p) => <button type="button" onClick={() => onSelect(p.slug)} key={p.slug} className="flex w-full items-center justify-between border-b border-white/10 pb-2 text-left text-sm hover:text-white/60"><span><b>{p.name}</b> <span className="text-white/45">· {p.team}</span></span><span className="text-xs text-white/45">{p.distance}</span></button>)}</div></article>; }
-function ContractCard({ contract, years, money }: { contract: Detail["contract"]; years: Detail["contract_years"]; money: (value: number | null) => string }) { if (!contract) return <article className="border border-white/10 bg-[#121212] p-6"><h2 className="text-sm font-black uppercase tracking-[0.12em]">Contract</h2><p className="mt-4 text-sm text-white/55">No reviewed contract dataset is loaded. Import the versioned CSV to surface salary, option, and contract-type data.</p></article>; return <article className="border border-white/10 bg-[#121212] p-6"><h2 className="text-sm font-black uppercase tracking-[0.12em]">Contract</h2><p className="mt-3 text-sm font-bold">{contract.contract_type} · {money(contract.current_salary)} current salary</p><p className="mt-1 text-xs text-white/45">As of {contract.as_of_date} · {contract.source}</p><div className="mt-4 space-y-2 text-xs">{years.map((year) => <p key={year.season}>{year.season}: {money(year.salary)} {year.player_option ? "· Player option" : ""}{year.team_option ? "· Team option" : ""}{year.early_termination_option ? "· ETO" : ""}</p>)}</div></article>; }
-function DataCard({ title, data, fields }: { title: string; data: Record<string, string | number | null>; fields: string[] }) { const label = (key: string) => key.replaceAll("_", " "); return <article className="border border-white/10 bg-[#121212] p-6"><h2 className="text-sm font-black uppercase tracking-[0.12em]">{title}</h2><dl className="mt-5 space-y-3">{fields.map((field) => <div key={field} className="flex justify-between border-b border-white/10 pb-2 text-sm"><dt className="capitalize text-white/45">{label(field)}</dt><dd className="font-bold">{data[field] ?? "—"}</dd></div>)}</dl></article>; }
+  useEffect(() => {
+    void loadPlayer(DEFAULT_PLAYER_SLUG);
+  }, [loadPlayer]);
+
+  useEffect(() => {
+    if (!selectedPlayer) return;
+    void fetchJson<TeamContext>(
+      `/api/v1/team-context/${comparisonTeam}?player_slug=${selectedPlayer.player.slug}`,
+    )
+      .then(setTeamContext)
+      .catch(() => setTeamContext(null));
+  }, [comparisonTeam, selectedPlayer]);
+
+  if (!userName) return <LoginScreen onLogin={setUserName} />;
+
+  return (
+    <AppShell
+      userName={userName}
+      onNavigate={(label) =>
+        setActiveView(
+          label === "Challenge Assist"
+            ? "challenge"
+            : label === "Reports"
+              ? "reports"
+              : "evaluate",
+        )
+      }
+    >
+      {activeView === "challenge" && <ChallengeAssist />}
+      {activeView === "reports" && (
+        <main className="min-h-[calc(100vh-72px)]" />
+      )}
+      {activeView === "evaluate" && (
+        <main className="mx-auto max-w-[1460px] px-5 py-7 md:px-8 lg:px-10">
+          <EvaluationTabs activeTab={activeTab} onChange={setActiveTab} />
+          {activeTab === "nba" && (
+            <>
+              {isPlayerLoading && (
+                <p className="py-24 text-center text-sm text-white/45">
+                  Loading NBA data…
+                </p>
+              )}
+              {selectedPlayer && (
+                <DecisionDashboard
+                  detail={selectedPlayer}
+                  context={teamContext}
+                  onPlayerSelect={loadPlayer}
+                  onTeamChange={setComparisonTeam}
+                />
+              )}
+            </>
+          )}
+          {activeTab === "combine" && <CombineWorkspace />}
+        </main>
+      )}
+    </AppShell>
+  );
+}
+
+function EvaluationTabs({
+  activeTab,
+  onChange,
+}: {
+  activeTab: EvaluationTab;
+  onChange: (tab: EvaluationTab) => void;
+}) {
+  return (
+    <div className="mb-7 flex border-b border-white/10">
+      {(["nba", "combine"] as const).map((tab) => (
+        <button
+          key={tab}
+          onClick={() => onChange(tab)}
+          className={`border-b-2 px-5 py-3 text-xs font-black uppercase tracking-[.14em] ${activeTab === tab ? "border-[#e84b37] text-white" : "border-transparent text-white/40 hover:text-white"}`}
+        >
+          {tab === "nba" ? "NBA" : "Draft combine"}
+        </button>
+      ))}
+    </div>
+  );
+}
+
+function CombineWorkspace() {
+  const [draftYear, setDraftYear] = useState("");
+  const [prospects, setProspects] = useState<CombineProspect[]>([]);
+  const [selectedProspectId, setSelectedProspectId] = useState("");
+  const [isLoading, setIsLoading] = useState(false);
+  const selectedProspect =
+    prospects.find(
+      ({ person_id }) => String(person_id) === selectedProspectId,
+    ) ?? null;
+
+  useEffect(() => {
+    if (!draftYear) {
+      setProspects([]);
+      setSelectedProspectId("");
+      return;
+    }
+    setIsLoading(true);
+    void fetchJson<CombineProspect[]>(
+      `/api/v1/combine-prospects?season=${draftYear}`,
+    )
+      .then((rows) => {
+        setProspects(rows ?? []);
+        setSelectedProspectId("");
+      })
+      .catch(() => {
+        setProspects([]);
+        setSelectedProspectId("");
+      })
+      .finally(() => setIsLoading(false));
+  }, [draftYear]);
+
+  return (
+    <section>
+      <div className="border border-white/10 bg-[#121212] p-5">
+        <p className="text-[10px] font-bold uppercase tracking-[.16em] text-white/45">
+          NBA Draft Combine
+        </p>
+        <h1 className="mt-1 text-3xl font-black tracking-[-.06em]">
+          Prospect evaluation
+        </h1>
+        <p className="mt-2 text-sm text-white/50">
+          Select a combine class, then a prospect to compare against class
+          averages.
+        </p>
+        <div className="mt-5 flex flex-col gap-3 sm:flex-row sm:items-end">
+          <SelectField
+            label="Draft year"
+            value={draftYear}
+            onChange={setDraftYear}
+            className="sm:w-52"
+          >
+            <option value="">Select a draft year</option>
+            {COMBINE_YEARS.map((year) => (
+              <option key={year}>{year}</option>
+            ))}
+          </SelectField>
+          <SelectField
+            label="Prospect"
+            value={selectedProspectId}
+            onChange={setSelectedProspectId}
+            disabled={!draftYear || isLoading}
+            className="sm:w-80"
+          >
+            <option value="">
+              {isLoading
+                ? "Loading prospects…"
+                : draftYear
+                  ? "Select a prospect"
+                  : "Select a draft year first"}
+            </option>
+            {prospects.map((prospect) => (
+              <option key={prospect.person_id} value={prospect.person_id}>
+                {prospect.player_name}
+              </option>
+            ))}
+          </SelectField>
+        </div>
+      </div>
+      {isLoading && (
+        <p className="py-24 text-center text-sm text-white/45">
+          Loading combine class…
+        </p>
+      )}
+      {!isLoading && selectedProspect && (
+        <div className="mt-5">
+          <CombineProfile
+            prospect={selectedProspect}
+            classProspects={prospects}
+          />
+        </div>
+      )}
+      {!isLoading && draftYear && !selectedProspect && (
+        <p className="py-20 text-center text-sm text-white/45">
+          Select a prospect to open their combine evaluation.
+        </p>
+      )}
+    </section>
+  );
+}
+
+function SelectField({
+  label,
+  value,
+  onChange,
+  disabled,
+  className,
+  children,
+}: {
+  label: string;
+  value: string;
+  onChange: (value: string) => void;
+  disabled?: boolean;
+  className: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <label className={`block ${className}`}>
+      <span className="mb-2 block text-[10px] font-bold uppercase tracking-[.16em] text-white/45">
+        {label}
+      </span>
+      <select
+        value={value}
+        disabled={disabled}
+        onChange={(event) => onChange(event.target.value)}
+        className="w-full rounded-lg border border-white/15 bg-[#0b0b0b] px-3 py-3 text-sm font-bold text-white outline-none focus:border-[#e84b37] disabled:cursor-not-allowed disabled:opacity-40"
+      >
+        {children}
+      </select>
+    </label>
+  );
+}
+
+function CombineProfile({
+  prospect,
+  classProspects,
+}: {
+  prospect: CombineProspect;
+  classProspects: CombineProspect[];
+}) {
+  return (
+    <div>
+      <div className="w-full max-w-sm border border-white/10 bg-[#121212] p-5">
+        <h2 className="text-3xl font-black tracking-[-.07em]">
+          {prospect.player_name}
+        </h2>
+        <div className="mt-4 border-t border-white/10 pt-3">
+          <p className="text-[10px] font-bold uppercase tracking-[.14em] text-white/40">
+            Position
+          </p>
+          <p className="mt-1 text-sm font-bold">{prospect.position ?? "N/A"}</p>
+        </div>
+      </div>
+      <div className="mt-5 grid gap-5 xl:grid-cols-2">
+        {COMBINE_SECTIONS.map((section) => (
+          <CombineSection
+            key={section.title}
+            title={section.title}
+            data={buildCombineChartData(
+              prospect,
+              classProspects,
+              section.metrics,
+            )}
+          />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function buildCombineChartData(
+  prospect: CombineProspect,
+  classProspects: CombineProspect[],
+  metrics: CombineMetric[],
+): CombineChartPoint[] {
+  return metrics.map((metric) => {
+    const classValues = classProspects
+      .map((item) => toNumber(item[metric.key]))
+      .filter((value): value is number => value !== null);
+    const averageValue = classValues.length
+      ? classValues.reduce((sum, value) => sum + value, 0) / classValues.length
+      : null;
+    const rawValue = toNumber(prospect[metric.key]);
+    const relativeValue =
+      rawValue !== null && averageValue
+        ? (metric.inverse ? averageValue / rawValue : rawValue / averageValue) *
+          100
+        : null;
+    return {
+      ...metric,
+      player: relativeValue === null ? null : Math.min(relativeValue, 160),
+      classAverage: 100,
+      rawValue,
+      averageValue,
+      playerName: prospect.player_name,
+    };
+  });
+}
+
+function toNumber(value: string | number | null | undefined): number | null {
+  const number = Number(value);
+  return value == null || !Number.isFinite(number) ? null : number;
+}
+
+function CombineSection({
+  title,
+  data,
+}: {
+  title: string;
+  data: CombineChartPoint[];
+}) {
+  return (
+    <article className="border border-white/10 bg-[#121212] p-5">
+      <h3 className="text-xs font-bold uppercase tracking-[.12em] text-white/55">
+        {title}
+      </h3>
+      <ResponsiveContainer width="100%" height={300}>
+        <RadarChart data={data}>
+          <PolarGrid stroke="#ffffff22" />
+          <PolarAngleAxis
+            dataKey="label"
+            tick={{ fill: "#ffffff99", fontSize: 10 }}
+          />
+          <Radar
+            name={data[0]?.playerName ?? "Prospect"}
+            dataKey="player"
+            stroke="#f4f3ee"
+            fill="#f4f3ee"
+            fillOpacity={0.2}
+          />
+          <Radar
+            name="Class average"
+            dataKey="classAverage"
+            stroke="#e84b37"
+            fill="#e84b37"
+            fillOpacity={0.12}
+          />
+          <Tooltip content={<CombineTooltip />} />
+        </RadarChart>
+      </ResponsiveContainer>
+      <div className="grid grid-cols-2 gap-x-4 gap-y-2 border-t border-white/10 pt-3 text-xs">
+        {data.map((metric) => (
+          <div key={metric.label} className="flex justify-between gap-2">
+            <span className="text-white/45">{metric.label}</span>
+            <b>{formatMetricValue(metric.rawValue, metric.percent)}</b>
+          </div>
+        ))}
+      </div>
+    </article>
+  );
+}
+
+function CombineTooltip({ active, payload }: any) {
+  if (!active || !payload?.length) return null;
+  const metric = payload[0].payload as CombineChartPoint;
+  return (
+    <div className="border border-white/20 bg-[#101010] p-3 text-xs text-white shadow-xl">
+      <b>{metric.label}</b>
+      <p className="mt-1 text-white/70">
+        {metric.playerName}:{" "}
+        {formatMetricValue(metric.rawValue, metric.percent)}
+      </p>
+      <p className="text-white/70">
+        Class average: {formatMetricValue(metric.averageValue, metric.percent)}
+      </p>
+    </div>
+  );
+}
+
+function formatMetricValue(value: number | null, percent?: boolean) {
+  return value === null ? "N/A" : `${value.toFixed(1)}${percent ? "%" : ""}`;
+}

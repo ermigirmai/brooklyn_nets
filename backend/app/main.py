@@ -3,18 +3,27 @@ import os
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.database import combine_prospects, data_status, ingested_player_detail, initialize, search_ingested_players, team_context
-from app.repository import get_player, search_players
-from app.schemas import PlayerEvaluation, PlayerSearchResult
+from app.database import (
+    combine_prospects,
+    data_status,
+    ingested_player_detail,
+    initialize,
+    search_ingested_players,
+    team_context,
+)
 
 app = FastAPI(title="CourtVision API", version="0.1.0")
 
 
 @app.on_event("startup")
-def create_schema() -> None:
+def initialize_database() -> None:
     initialize()
 
-allowed_origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",") if origin.strip()]
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
+    if origin.strip()
+]
 
 app.add_middleware(
     CORSMiddleware,
@@ -32,7 +41,7 @@ def health() -> dict[str, str]:
 
 
 @app.get("/api/v1/data-status")
-def database_status() -> dict[str, int]:
+def get_data_status() -> dict[str, int]:
     return data_status()
 
 
@@ -42,7 +51,7 @@ def draft_combine_prospects(season: str = Query(default="2024-25", pattern=r"^\d
 
 
 @app.get("/api/v1/ingested-players/{slug}")
-def ingested_player(slug: str) -> dict:
+def get_ingested_player(slug: str) -> dict:
     detail = ingested_player_detail(slug)
     if detail is None:
         raise HTTPException(status_code=404, detail="Ingested player not found")
@@ -50,21 +59,19 @@ def ingested_player(slug: str) -> dict:
 
 
 @app.get("/api/v1/team-context/{team_code}")
-def selected_team_context(team_code: str, player_slug: str | None = None) -> dict:
+def get_team_context(team_code: str, player_slug: str | None = None) -> dict:
     return team_context(team_code, player_slug)
 
 
-@app.get("/api/v1/players", response_model=list[PlayerSearchResult])
-def players(q: str = Query(default="", max_length=80)) -> list[PlayerSearchResult]:
+@app.get("/api/v1/players")
+def search_players(q: str = Query(default="", max_length=80)) -> list[dict[str, str]]:
     rows = search_ingested_players(q.strip())
-    if rows:
-        return [PlayerSearchResult(slug=row["slug"], name=row["full_name"], team=row["team_name"] or "NBA", position=row["position"] or "") for row in rows]
-    return search_players(q)
-
-
-@app.get("/api/v1/players/{slug}", response_model=PlayerEvaluation)
-def player(slug: str) -> PlayerEvaluation:
-    evaluation = get_player(slug)
-    if evaluation is None:
-        raise HTTPException(status_code=404, detail="Player not found")
-    return evaluation
+    return [
+        {
+            "slug": row["slug"],
+            "name": row["full_name"],
+            "team": row["team_name"] or "NBA",
+            "position": row["position"] or "",
+        }
+        for row in rows
+    ]

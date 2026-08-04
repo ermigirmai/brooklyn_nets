@@ -1,46 +1,656 @@
 "use client";
 
-import { Bar, BarChart, CartesianGrid, Legend, Line, LineChart, Radar, RadarChart, ResponsiveContainer, Tooltip, PolarAngleAxis, PolarGrid, XAxis, YAxis, ReferenceLine } from "recharts";
+import {
+  Bar,
+  BarChart,
+  CartesianGrid,
+  Legend,
+  Line,
+  LineChart,
+  Radar,
+  RadarChart,
+  ResponsiveContainer,
+  Tooltip,
+  PolarAngleAxis,
+  PolarGrid,
+  XAxis,
+  YAxis,
+  ReferenceLine,
+} from "recharts";
 import { PlayerSearch } from "./player-search";
 
-type Props = { detail: any; context: any; onPlayerSelect: (slug: string) => void; onTeamChange: (team: string) => void };
-const teams = ["ATL","BOS","BKN","CHA","CHI","CLE","DAL","DEN","DET","GSW","HOU","IND","LAC","LAL","MEM","MIA","MIL","MIN","NOP","NYK","OKC","ORL","PHI","PHX","POR","SAC","SAS","TOR","UTA","WAS"];
-const money = (n: number | null | undefined) => n == null ? "—" : `$${(n / 1_000_000).toFixed(1)}M`;
-const num = (n: number | null | undefined, digits = 1) => n == null ? "—" : n.toFixed(digits);
+type Props = {
+  detail: any;
+  context: any;
+  onPlayerSelect: (slug: string) => void;
+  onTeamChange: (team: string) => void;
+};
+const teams = [
+  "ATL",
+  "BOS",
+  "BKN",
+  "CHA",
+  "CHI",
+  "CLE",
+  "DAL",
+  "DEN",
+  "DET",
+  "GSW",
+  "HOU",
+  "IND",
+  "LAC",
+  "LAL",
+  "MEM",
+  "MIA",
+  "MIL",
+  "MIN",
+  "NOP",
+  "NYK",
+  "OKC",
+  "ORL",
+  "PHI",
+  "PHX",
+  "POR",
+  "SAC",
+  "SAS",
+  "TOR",
+  "UTA",
+  "WAS",
+];
+const money = (n: number | null | undefined) =>
+  n == null ? "—" : `$${(n / 1_000_000).toFixed(1)}M`;
+const num = (n: number | null | undefined, digits = 1) =>
+  n == null ? "—" : n.toFixed(digits);
 
-export function DecisionDashboard({ detail, context, onPlayerSelect, onTeamChange }: Props) {
-  const { player, advanced_season: season, advanced_history: history, contract, contract_years: years, shooting_zones: zones } = detail;
-  const darko = detail.darko; const team = context?.team_code ?? "BKN";
+export function DecisionDashboard({
+  detail,
+  context,
+  onPlayerSelect,
+  onTeamChange,
+}: Props) {
+  const {
+    player,
+    advanced_season: season,
+    advanced_history: history,
+    contract,
+    contract_years: years,
+    shooting_zones: zones,
+  } = detail;
+  const darko = detail.darko;
+  const team = context?.team_code ?? "BKN";
   const avg = context?.team_averages ?? {};
   const radar = [
-    ["PPG", "pts", 35, "ppg"], ["APG", "ast", 12, "apg"], ["OffRPG", "oreb", 5, "rpg"], ["DefRPG", "dreb", 12, "rpg"],
-    ["3P%", "fg3_pct", .5, "%"], ["FT%", "ft_pct", 1, "%"], ["TS%", "ts_pct", .8, "%"], ["STL", "stl", 3, "spg"],
-  ].map(([metric, key, scale, unit]) => ({ metric, player: 100 * Number(season?.[key] ?? 0) / Number(scale), team: 100 * Number(avg[key] ?? 0) / Number(scale), playerRaw: Number(season?.[key] ?? 0), teamRaw: Number(avg[key] ?? 0), unit }));
-  const impact = history.map((row: any) => ({ season: row.season, net: row.net_rating, pie: row.pie == null ? null : row.pie * 100, winShares: row.pie == null ? null : Math.max(0, row.pie * 50) }));
+    ["PPG", "pts", 35, "ppg"],
+    ["APG", "ast", 12, "apg"],
+    ["OffRPG", "oreb", 5, "rpg"],
+    ["DefRPG", "dreb", 12, "rpg"],
+    ["3P%", "fg3_pct", 0.5, "%"],
+    ["FT%", "ft_pct", 1, "%"],
+    ["TS%", "ts_pct", 0.8, "%"],
+    ["STL", "stl", 3, "spg"],
+  ].map(([metric, key, scale, unit]) => ({
+    metric,
+    player: (100 * Number(season?.[key] ?? 0)) / Number(scale),
+    team: (100 * Number(avg[key] ?? 0)) / Number(scale),
+    playerRaw: Number(season?.[key] ?? 0),
+    teamRaw: Number(avg[key] ?? 0),
+    unit,
+  }));
+  const impact = history.map((row: any) => ({
+    season: row.season,
+    net: row.net_rating,
+    pie: row.pie == null ? null : row.pie * 100,
+    winShares: row.pie == null ? null : Math.max(0, row.pie * 50),
+  }));
   const dpm = detail.darko;
-  const dpmTrend = [0, 1, 2, 3, 4].map((step) => ({ season: step === 0 ? "Current" : `+${step} yr`, off: dpm?.off_dpm == null ? null : dpm.off_dpm - step * .12, def: dpm?.def_dpm == null ? null : dpm.def_dpm - step * .06 }));
-  const teamPayroll = Object.fromEntries((context?.contract_years ?? []).map((row: any) => [row.season, row.payroll]));
-  const playerSalary = Object.fromEntries(years.map((row: any) => [row.season, row.salary]));
-  const cap = ["2026-27", "2027-28", "2028-29", "2029-30"].map((season) => ({ season, player: (playerSalary[season] ?? 0) / 1_000_000, team: (teamPayroll[season] ?? 0) / 1_000_000, tax: 188, first: 196, second: 207 }));
+  const dpmTrend = [0, 1, 2, 3, 4].map((step) => ({
+    season: step === 0 ? "Current" : `+${step} yr`,
+    off: dpm?.off_dpm == null ? null : dpm.off_dpm - step * 0.12,
+    def: dpm?.def_dpm == null ? null : dpm.def_dpm - step * 0.06,
+  }));
+  const teamPayroll = Object.fromEntries(
+    (context?.contract_years ?? []).map((row: any) => [
+      row.season,
+      row.payroll,
+    ]),
+  );
+  const playerSalary = Object.fromEntries(
+    years.map((row: any) => [row.season, row.salary]),
+  );
+  const cap = ["2026-27", "2027-28", "2028-29", "2029-30"].map((season) => ({
+    season,
+    player: (playerSalary[season] ?? 0) / 1_000_000,
+    team: (teamPayroll[season] ?? 0) / 1_000_000,
+    tax: 188,
+    first: 196,
+    second: 207,
+  }));
   const playerBio = [player.school, player.country].filter(Boolean).join(" · ");
-  return <div className="space-y-7">
-    <section className="grid items-stretch gap-5 xl:grid-cols-[380px_1fr]">
-      <article className="border border-white/10 bg-[#121212] p-4"><div className="flex gap-4"><img src={player.headshot_url} alt={player.full_name} className="h-20 w-20 object-cover object-top" /><div><h1 className="mt-1 text-2xl font-black tracking-[-.06em]">{player.full_name}</h1><p className="mt-1 text-sm text-white/55">{[player.team_name, player.position].filter(Boolean).join(" · ")}</p>{(player.height || player.weight) && <p className="mt-1 text-xs text-white/40">{[player.height, player.weight].filter(Boolean).join(" · ")}</p>}{playerBio && <p className="mt-1 text-xs text-white/40">{playerBio}</p>}</div></div></article><div className="grid gap-3 border border-white/10 bg-[#121212] p-4 sm:grid-cols-[minmax(0,1fr)_156px]"><div><p className="mb-2 text-[10px] font-bold uppercase tracking-[.16em] text-white/45">Find a player</p><PlayerSearch onSelect={onPlayerSelect} /></div><label className="block"><span className="mb-2 block text-[10px] font-bold uppercase tracking-[.16em] text-white/45">Comparison team</span><select aria-label="Reference team" value={team} onChange={(e) => onTeamChange(e.target.value)} className="w-full rounded-lg border border-white/15 bg-[#0b0b0b] px-3 py-3 text-sm font-bold text-white outline-none transition focus:border-[#e84b37] focus:ring-2 focus:ring-[#e84b37]/20">{teams.map((code) => <option key={code}>{code}</option>)}</select></label></div>
-    </section>
-    <Section title="Production" subtitle={`Player profile relative to ${team}`}><div className="grid gap-5 xl:grid-cols-3"><Card title="Team impact"><ResponsiveContainer width="100%" height={290}><RadarChart data={radar}><PolarGrid stroke="#ffffff22" /><PolarAngleAxis dataKey="metric" tick={{ fill: "#ffffff99", fontSize: 11 }} /><Radar name={player.full_name} dataKey="player" stroke="#f4f3ee" fill="#f4f3ee" fillOpacity={.22} /><Radar name={team} dataKey="team" stroke="#e84b37" fill="#e84b37" fillOpacity={.18} /><Tooltip content={<RadarTooltip />} /></RadarChart></ResponsiveContainer></Card><Card title="Impact trajectory" className="xl:col-span-2"><ResponsiveContainer width="100%" height={290}><LineChart data={impact}><CartesianGrid stroke="#ffffff15" vertical={false} /><Tooltip content={<ImpactTooltip />} /><Line yAxisId="net" type="monotone" dataKey="net" stroke="#f4f3ee" strokeWidth={2} name="Net Rating" /><Line yAxisId="pie" type="monotone" dataKey="pie" stroke="#e84b37" strokeWidth={2} name="PIE %" /><Line yAxisId="ws" type="monotone" dataKey="winShares" stroke="#60a5fa" strokeWidth={2} strokeDasharray="4 3" name="Win Shares" /><YAxis yAxisId="net" tick={{fill:"#ffffff88",fontSize:11}} /><YAxis yAxisId="pie" orientation="right" tick={{fill:"#e84b37",fontSize:11}} /><YAxis yAxisId="ws" hide /><Legend /><XAxis dataKey="season" tick={{fill:'#ffffff88',fontSize:11}} /></LineChart></ResponsiveContainer></Card></div></Section>
-    <Section title="Projected Value" subtitle="DARKO offensive and defensive impact outlook"><Card title="5-year DARKO DPM projection"><ResponsiveContainer width="100%" height={380}><LineChart data={dpmTrend}><CartesianGrid stroke="#ffffff15" vertical={false} /><Tooltip content={<DpmTooltip />} /><XAxis dataKey="season" tick={{fill:'#ffffff88',fontSize:11}} /><YAxis tick={{fill:'#ffffff88',fontSize:11}} /><Line type="monotone" dataKey="off" stroke="#e84b37" strokeWidth={3} name="Offensive DPM" /><Line type="monotone" dataKey="def" stroke="#60a5fa" strokeWidth={3} name="Defensive DPM" /><Legend /></LineChart></ResponsiveContainer><p className="mt-2 text-xs text-white/45">DARKO’s Daily Plus Minus (DPM) estimates a player’s impact on game score. Off DPM and Def DPM split that estimate into offensive and defensive components; DARKO blends projected box-score and on/off information and updates daily.</p></Card></Section>
-    <div className="grid items-start gap-7 xl:grid-cols-2">
-    <Section title="Efficiencies" subtitle="Shooting profile and conversion"><div className="space-y-5"><Card title="Player shooting zones"><Court zones={zones} variant="player" /></Card><Card title={`${team} shooting profile`}><Court zones={context?.shooting_zones ?? []} variant="team" /></Card></div></Section>
-    <Section title="Salary cap" subtitle="Player salary stacked on selected-team listed payroll"><Card><div className="mb-5 rounded-lg border border-white/10 bg-[#0d0d0d] p-4"><p className="text-[10px] font-bold uppercase tracking-[.16em] text-white/45">Contract notes</p>{contract ? <><div className="mt-3 flex flex-wrap gap-2 text-xs"><span className="border border-white/15 bg-white/5 px-2 py-1 text-white/75">{money(contract.cap_hit)} current cap hit</span><span className="border border-white/15 bg-white/5 px-2 py-1 text-white/75">{contract.years_remaining ?? "—"} years remaining</span>{years.filter((y: any) => y.player_option).map((y: any) => <span key={`po-${y.season}`} className="border border-[#f2c94c]/40 bg-[#f2c94c]/10 px-2 py-1 text-[#f2c94c]">{y.season} player option</span>)}{years.filter((y: any) => y.team_option).map((y: any) => <span key={`to-${y.season}`} className="border border-[#60a5fa]/40 bg-[#60a5fa]/10 px-2 py-1 text-[#93c5fd]">{y.season} team option</span>)}{years.filter((y: any) => y.early_termination_option).map((y: any) => <span key={`eto-${y.season}`} className="border border-[#a78bfa]/40 bg-[#a78bfa]/10 px-2 py-1 text-[#c4b5fd]">{y.season} ETO</span>)}</div></> : <p className="mt-2 text-xs text-white/45">No reviewed contract record is loaded for this player.</p>}</div><ResponsiveContainer width="100%" height={540}><BarChart data={cap} layout="vertical" barCategoryGap="58%"><CartesianGrid stroke="#ffffff15" vertical={false} /><XAxis type="number" tick={{fill:'#ffffff88',fontSize:11}} /><YAxis type="category" dataKey="season" tick={{fill:'#ffffff88',fontSize:11}} /><ReferenceLine x={165} stroke="#f4f3ee" strokeDasharray="5 4" /><ReferenceLine x={188} stroke="#f2c94c" strokeDasharray="5 4" /><ReferenceLine x={196} stroke="#e84b37" strokeDasharray="5 4" /><ReferenceLine x={207} stroke="#a78bfa" strokeDasharray="5 4" /><Tooltip content={<CapTooltip />} /><Legend /><Bar dataKey="team" stackId="a" barSize={18} fill="#555" name={`${team} current payroll`} /><Bar dataKey="player" stackId="a" barSize={18} fill="#e84b37" name={`${player.full_name} cap hit`} /></BarChart></ResponsiveContainer><div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-white/65"><span className="text-white">Salary cap · $165M</span><span className="text-[#f2c94c]">Luxury tax · $188M</span><span className="text-[#e84b37]">1st apron · $196M</span><span className="text-[#a78bfa]">2nd apron · $207M</span></div></Card></Section></div>
-  </div>;
+  return (
+    <div className="space-y-7">
+      <section className="grid items-stretch gap-5 xl:grid-cols-[380px_1fr]">
+        <article className="border border-white/10 bg-[#121212] p-4">
+          <div className="flex gap-4">
+            <img
+              src={player.headshot_url}
+              alt={player.full_name}
+              className="h-20 w-20 object-cover object-top"
+            />
+            <div>
+              <h1 className="mt-1 text-2xl font-black tracking-[-.06em]">
+                {player.full_name}
+              </h1>
+              <p className="mt-1 text-sm text-white/55">
+                {[player.team_name, player.position]
+                  .filter(Boolean)
+                  .join(" · ")}
+              </p>
+              {(player.height || player.weight) && (
+                <p className="mt-1 text-xs text-white/40">
+                  {[player.height, player.weight].filter(Boolean).join(" · ")}
+                </p>
+              )}
+              {playerBio && (
+                <p className="mt-1 text-xs text-white/40">{playerBio}</p>
+              )}
+            </div>
+          </div>
+        </article>
+        <div className="grid gap-3 border border-white/10 bg-[#121212] p-4 sm:grid-cols-[minmax(0,1fr)_156px]">
+          <div>
+            <p className="mb-2 text-[10px] font-bold uppercase tracking-[.16em] text-white/45">
+              Find a player
+            </p>
+            <PlayerSearch onSelect={onPlayerSelect} />
+          </div>
+          <label className="block">
+            <span className="mb-2 block text-[10px] font-bold uppercase tracking-[.16em] text-white/45">
+              Comparison team
+            </span>
+            <select
+              aria-label="Reference team"
+              value={team}
+              onChange={(e) => onTeamChange(e.target.value)}
+              className="w-full rounded-lg border border-white/15 bg-[#0b0b0b] px-3 py-3 text-sm font-bold text-white outline-none transition focus:border-[#e84b37] focus:ring-2 focus:ring-[#e84b37]/20"
+            >
+              {teams.map((code) => (
+                <option key={code}>{code}</option>
+              ))}
+            </select>
+          </label>
+        </div>
+      </section>
+      <Section
+        title="Production"
+        subtitle={`Player profile relative to ${team}`}
+      >
+        <div className="grid gap-5 xl:grid-cols-3">
+          <Card title="Team impact">
+            <ResponsiveContainer width="100%" height={290}>
+              <RadarChart data={radar}>
+                <PolarGrid stroke="#ffffff22" />
+                <PolarAngleAxis
+                  dataKey="metric"
+                  tick={{ fill: "#ffffff99", fontSize: 11 }}
+                />
+                <Radar
+                  name={player.full_name}
+                  dataKey="player"
+                  stroke="#f4f3ee"
+                  fill="#f4f3ee"
+                  fillOpacity={0.22}
+                />
+                <Radar
+                  name={team}
+                  dataKey="team"
+                  stroke="#e84b37"
+                  fill="#e84b37"
+                  fillOpacity={0.18}
+                />
+                <Tooltip content={<RadarTooltip />} />
+              </RadarChart>
+            </ResponsiveContainer>
+          </Card>
+          <Card title="Impact trajectory" className="xl:col-span-2">
+            <ResponsiveContainer width="100%" height={290}>
+              <LineChart data={impact}>
+                <CartesianGrid stroke="#ffffff15" vertical={false} />
+                <Tooltip content={<ImpactTooltip />} />
+                <Line
+                  yAxisId="net"
+                  type="monotone"
+                  dataKey="net"
+                  stroke="#f4f3ee"
+                  strokeWidth={2}
+                  name="Net Rating"
+                />
+                <Line
+                  yAxisId="pie"
+                  type="monotone"
+                  dataKey="pie"
+                  stroke="#e84b37"
+                  strokeWidth={2}
+                  name="PIE %"
+                />
+                <Line
+                  yAxisId="ws"
+                  type="monotone"
+                  dataKey="winShares"
+                  stroke="#60a5fa"
+                  strokeWidth={2}
+                  strokeDasharray="4 3"
+                  name="Win Shares"
+                />
+                <YAxis
+                  yAxisId="net"
+                  tick={{ fill: "#ffffff88", fontSize: 11 }}
+                />
+                <YAxis
+                  yAxisId="pie"
+                  orientation="right"
+                  tick={{ fill: "#e84b37", fontSize: 11 }}
+                />
+                <YAxis yAxisId="ws" hide />
+                <Legend />
+                <XAxis
+                  dataKey="season"
+                  tick={{ fill: "#ffffff88", fontSize: 11 }}
+                />
+              </LineChart>
+            </ResponsiveContainer>
+          </Card>
+        </div>
+      </Section>
+      <Section
+        title="Projected Value"
+        subtitle="DARKO offensive and defensive impact outlook"
+      >
+        <Card title="5-year DARKO DPM projection">
+          <ResponsiveContainer width="100%" height={380}>
+            <LineChart data={dpmTrend}>
+              <CartesianGrid stroke="#ffffff15" vertical={false} />
+              <Tooltip content={<DpmTooltip />} />
+              <XAxis
+                dataKey="season"
+                tick={{ fill: "#ffffff88", fontSize: 11 }}
+              />
+              <YAxis tick={{ fill: "#ffffff88", fontSize: 11 }} />
+              <Line
+                type="monotone"
+                dataKey="off"
+                stroke="#e84b37"
+                strokeWidth={3}
+                name="Offensive DPM"
+              />
+              <Line
+                type="monotone"
+                dataKey="def"
+                stroke="#60a5fa"
+                strokeWidth={3}
+                name="Defensive DPM"
+              />
+              <Legend />
+            </LineChart>
+          </ResponsiveContainer>
+          <p className="mt-2 text-xs text-white/45">
+            DARKO’s Daily Plus Minus (DPM) estimates a player’s impact on game
+            score. Off DPM and Def DPM split that estimate into offensive and
+            defensive components; DARKO blends projected box-score and on/off
+            information and updates daily.
+          </p>
+        </Card>
+      </Section>
+      <div className="grid items-start gap-7 xl:grid-cols-2">
+        <Section
+          title="Efficiencies"
+          subtitle="Shooting profile and conversion"
+        >
+          <div className="space-y-5">
+            <Card title="Player shooting zones">
+              <Court zones={zones} variant="player" />
+            </Card>
+            <Card title={`${team} shooting profile`}>
+              <Court zones={context?.shooting_zones ?? []} variant="team" />
+            </Card>
+          </div>
+        </Section>
+        <Section
+          title="Salary cap"
+          subtitle="Player salary stacked on selected-team listed payroll"
+        >
+          <Card>
+            <div className="mb-5 rounded-lg border border-white/10 bg-[#0d0d0d] p-4">
+              <p className="text-[10px] font-bold uppercase tracking-[.16em] text-white/45">
+                Contract notes
+              </p>
+              {contract ? (
+                <>
+                  <div className="mt-3 flex flex-wrap gap-2 text-xs">
+                    <span className="border border-white/15 bg-white/5 px-2 py-1 text-white/75">
+                      {money(contract.cap_hit)} current cap hit
+                    </span>
+                    <span className="border border-white/15 bg-white/5 px-2 py-1 text-white/75">
+                      {contract.years_remaining ?? "—"} years remaining
+                    </span>
+                    {years
+                      .filter((y: any) => y.player_option)
+                      .map((y: any) => (
+                        <span
+                          key={`po-${y.season}`}
+                          className="border border-[#f2c94c]/40 bg-[#f2c94c]/10 px-2 py-1 text-[#f2c94c]"
+                        >
+                          {y.season} player option
+                        </span>
+                      ))}
+                    {years
+                      .filter((y: any) => y.team_option)
+                      .map((y: any) => (
+                        <span
+                          key={`to-${y.season}`}
+                          className="border border-[#60a5fa]/40 bg-[#60a5fa]/10 px-2 py-1 text-[#93c5fd]"
+                        >
+                          {y.season} team option
+                        </span>
+                      ))}
+                    {years
+                      .filter((y: any) => y.early_termination_option)
+                      .map((y: any) => (
+                        <span
+                          key={`eto-${y.season}`}
+                          className="border border-[#a78bfa]/40 bg-[#a78bfa]/10 px-2 py-1 text-[#c4b5fd]"
+                        >
+                          {y.season} ETO
+                        </span>
+                      ))}
+                  </div>
+                </>
+              ) : (
+                <p className="mt-2 text-xs text-white/45">
+                  No reviewed contract record is loaded for this player.
+                </p>
+              )}
+            </div>
+            <ResponsiveContainer width="100%" height={540}>
+              <BarChart data={cap} layout="vertical" barCategoryGap="58%">
+                <CartesianGrid stroke="#ffffff15" vertical={false} />
+                <XAxis
+                  type="number"
+                  tick={{ fill: "#ffffff88", fontSize: 11 }}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="season"
+                  tick={{ fill: "#ffffff88", fontSize: 11 }}
+                />
+                <ReferenceLine x={165} stroke="#f4f3ee" strokeDasharray="5 4" />
+                <ReferenceLine x={188} stroke="#f2c94c" strokeDasharray="5 4" />
+                <ReferenceLine x={196} stroke="#e84b37" strokeDasharray="5 4" />
+                <ReferenceLine x={207} stroke="#a78bfa" strokeDasharray="5 4" />
+                <Tooltip content={<CapTooltip />} />
+                <Legend />
+                <Bar
+                  dataKey="team"
+                  stackId="a"
+                  barSize={18}
+                  fill="#555"
+                  name={`${team} current payroll`}
+                />
+                <Bar
+                  dataKey="player"
+                  stackId="a"
+                  barSize={18}
+                  fill="#e84b37"
+                  name={`${player.full_name} cap hit`}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+            <div className="mt-3 flex flex-wrap gap-x-5 gap-y-2 text-xs text-white/65">
+              <span className="text-white">Salary cap · $165M</span>
+              <span className="text-[#f2c94c]">Luxury tax · $188M</span>
+              <span className="text-[#e84b37]">1st apron · $196M</span>
+              <span className="text-[#a78bfa]">2nd apron · $207M</span>
+            </div>
+          </Card>
+        </Section>
+      </div>
+    </div>
+  );
 }
-function Section({ title, subtitle, children }: { title: string; subtitle: string; children: React.ReactNode }) { return <section><div className="mb-3 flex items-baseline gap-3"><h2 className="text-lg font-black uppercase tracking-[.12em]">{title}</h2><p className="text-xs text-white/45">{subtitle}</p></div>{children}</section>; }
-function Card({ title, children, className = "" }: { title?: string; children: React.ReactNode; className?: string }) { return <article className={`border border-white/10 bg-[#121212] p-5 ${className}`}>{title && <h3 className="text-xs font-bold uppercase tracking-[.12em] text-white/55">{title}</h3>}<div className={title ? "mt-3" : ""}>{children}</div></article>; }
-function Metric({ label, value }: { label: string; value: string | number }) { return <div><p className="text-xs text-white/45">{label}</p><p className="mt-1 text-2xl font-black">{value}</p></div>; }
-function Court({ zones, variant }: { zones: any[]; variant: "player" | "team" }) { const fallback = variant === "player" ? [{fg_pct:.64},{fg_pct:.46},{fg_pct:.43},{fg_pct:.39},{fg_pct:.36}] : [{fg_pct:.58},{fg_pct:.51},{fg_pct:.40},{fg_pct:.34},{fg_pct:.38}]; const values = zones.length ? zones : fallback; const display = Array.from({length: 8}, (_, index) => values[index % values.length]); const spot = [["12%","11%"],["50%","24%"],["88%","11%"],["31%","37%"],["69%","37%"],["24%","58%"],["76%","58%"],["50%","75%"]]; const heat = (pct: number) => pct >= .55 ? "#2f8f6f" : pct >= .45 ? "#a9d7c8" : pct >= .38 ? "#f3e5b5" : "#e9aaa5"; return <div className="relative mx-auto aspect-[500/470] w-full max-w-md overflow-hidden rounded-2xl border border-white/25 bg-[#bddacf]"><svg viewBox="0 0 500 470" className="absolute inset-0 h-full w-full" aria-label="Basketball half-court shooting zones"><path d="M20 15H480V455H20Z" fill="none" stroke="#171717" strokeWidth="2"/><path d="M20 15H120V180L210 270L130 455H20Z" fill="#aad2c3"/><path d="M480 15H380V180L290 270L370 455H480Z" fill="#efc6c2"/><path d="M170 15H330V205H170Z" fill="#f0eadc" stroke="#171717" strokeWidth="2"/><path d="M80 15V175A190 190 0 0 0 420 175V15" fill="none" stroke="#171717" strokeWidth="2"/><path d="M225 68 Q225 108 250 108 Q275 108 275 68" fill="none" stroke="#171717" strokeWidth="2"/><path d="M190 205a60 60 0 0 0 120 0" fill="none" stroke="#171717" strokeWidth="2"/><path d="M190 205a60 60 0 0 1 120 0" fill="none" stroke="#171717" strokeWidth="2" strokeDasharray="4 3"/><line x1="220" y1="45" x2="280" y2="45" stroke="#171717" strokeWidth="3"/><circle cx="250" cy="68" r="8" fill="none" stroke="#171717" strokeWidth="2"/><line x1="20" y1="365" x2="480" y2="365" stroke="#ffffff" strokeWidth="2" opacity=".7"/></svg>{display.map((zone, index) => <div key={index} style={{left:spot[index][0], top:spot[index][1], backgroundColor:heat(zone.fg_pct)}} className="absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-sm px-2 py-1 text-center text-sm font-black text-[#151515] shadow-sm">{num(zone.fg_pct * 100)}%</div>)}</div>; }
-function RadarTooltip({ active, payload }: any) { if (!active || !payload?.length) return null; const row = payload[0].payload; const format = (value: number) => row.unit === "%" ? `${(value * 100).toFixed(1)}%` : value.toFixed(1); return <div className="border border-white/20 bg-[#101010] p-3 text-xs shadow-xl"><b>{row.metric}</b><p className="mt-1 text-white/70">Player: {format(row.playerRaw)}</p><p className="text-white/70">Team top 5: {format(row.teamRaw)}</p></div>; }
-function ImpactTooltip({ active, payload, label }: any) { if (!active || !payload?.length) return null; return <div className="border border-white/20 bg-[#101010] p-3 text-xs text-white shadow-xl"><b>{label}</b>{payload.map((item: any) => <p key={item.name} className="mt-1" style={{color:item.color}}>{item.name}: {Number(item.value).toFixed(1)}</p>)}<p className="mt-2 text-white/45">Win Shares is a demo-only placeholder.</p></div>; }
+function Section({
+  title,
+  subtitle,
+  children,
+}: {
+  title: string;
+  subtitle: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section>
+      <div className="mb-3 flex items-baseline gap-3">
+        <h2 className="text-lg font-black uppercase tracking-[.12em]">
+          {title}
+        </h2>
+        <p className="text-xs text-white/45">{subtitle}</p>
+      </div>
+      {children}
+    </section>
+  );
+}
+function Card({
+  title,
+  children,
+  className = "",
+}: {
+  title?: string;
+  children: React.ReactNode;
+  className?: string;
+}) {
+  return (
+    <article className={`border border-white/10 bg-[#121212] p-5 ${className}`}>
+      {title && (
+        <h3 className="text-xs font-bold uppercase tracking-[.12em] text-white/55">
+          {title}
+        </h3>
+      )}
+      <div className={title ? "mt-3" : ""}>{children}</div>
+    </article>
+  );
+}
+function Court({
+  zones,
+  variant,
+}: {
+  zones: any[];
+  variant: "player" | "team";
+}) {
+  const fallback =
+    variant === "player"
+      ? [
+          { fg_pct: 0.64 },
+          { fg_pct: 0.46 },
+          { fg_pct: 0.43 },
+          { fg_pct: 0.39 },
+          { fg_pct: 0.36 },
+        ]
+      : [
+          { fg_pct: 0.58 },
+          { fg_pct: 0.51 },
+          { fg_pct: 0.4 },
+          { fg_pct: 0.34 },
+          { fg_pct: 0.38 },
+        ];
+  const values = zones.length ? zones : fallback;
+  const display = Array.from(
+    { length: 8 },
+    (_, index) => values[index % values.length],
+  );
+  const spot = [
+    ["12%", "11%"],
+    ["50%", "24%"],
+    ["88%", "11%"],
+    ["31%", "37%"],
+    ["69%", "37%"],
+    ["24%", "58%"],
+    ["76%", "58%"],
+    ["50%", "75%"],
+  ];
+  const heat = (pct: number) =>
+    pct >= 0.55
+      ? "#2f8f6f"
+      : pct >= 0.45
+        ? "#a9d7c8"
+        : pct >= 0.38
+          ? "#f3e5b5"
+          : "#e9aaa5";
+  return (
+    <div className="relative mx-auto aspect-[500/470] w-full max-w-md overflow-hidden rounded-2xl border border-white/25 bg-[#bddacf]">
+      <svg
+        viewBox="0 0 500 470"
+        className="absolute inset-0 h-full w-full"
+        aria-label="Basketball half-court shooting zones"
+      >
+        <path
+          d="M20 15H480V455H20Z"
+          fill="none"
+          stroke="#171717"
+          strokeWidth="2"
+        />
+        <path d="M20 15H120V180L210 270L130 455H20Z" fill="#aad2c3" />
+        <path d="M480 15H380V180L290 270L370 455H480Z" fill="#efc6c2" />
+        <path
+          d="M170 15H330V205H170Z"
+          fill="#f0eadc"
+          stroke="#171717"
+          strokeWidth="2"
+        />
+        <path
+          d="M80 15V175A190 190 0 0 0 420 175V15"
+          fill="none"
+          stroke="#171717"
+          strokeWidth="2"
+        />
+        <path
+          d="M225 68 Q225 108 250 108 Q275 108 275 68"
+          fill="none"
+          stroke="#171717"
+          strokeWidth="2"
+        />
+        <path
+          d="M190 205a60 60 0 0 0 120 0"
+          fill="none"
+          stroke="#171717"
+          strokeWidth="2"
+        />
+        <path
+          d="M190 205a60 60 0 0 1 120 0"
+          fill="none"
+          stroke="#171717"
+          strokeWidth="2"
+          strokeDasharray="4 3"
+        />
+        <line
+          x1="220"
+          y1="45"
+          x2="280"
+          y2="45"
+          stroke="#171717"
+          strokeWidth="3"
+        />
+        <circle
+          cx="250"
+          cy="68"
+          r="8"
+          fill="none"
+          stroke="#171717"
+          strokeWidth="2"
+        />
+        <line
+          x1="20"
+          y1="365"
+          x2="480"
+          y2="365"
+          stroke="#ffffff"
+          strokeWidth="2"
+          opacity=".7"
+        />
+      </svg>
+      {display.map((zone, index) => (
+        <div
+          key={index}
+          style={{
+            left: spot[index][0],
+            top: spot[index][1],
+            backgroundColor: heat(zone.fg_pct),
+          }}
+          className="absolute z-10 -translate-x-1/2 -translate-y-1/2 rounded-sm px-2 py-1 text-center text-sm font-black text-[#151515] shadow-sm"
+        >
+          {num(zone.fg_pct * 100)}%
+        </div>
+      ))}
+    </div>
+  );
+}
+function RadarTooltip({ active, payload }: any) {
+  if (!active || !payload?.length) return null;
+  const row = payload[0].payload;
+  const format = (value: number) =>
+    row.unit === "%" ? `${(value * 100).toFixed(1)}%` : value.toFixed(1);
+  return (
+    <div className="border border-white/20 bg-[#101010] p-3 text-xs shadow-xl">
+      <b>{row.metric}</b>
+      <p className="mt-1 text-white/70">Player: {format(row.playerRaw)}</p>
+      <p className="text-white/70">Team top 5: {format(row.teamRaw)}</p>
+    </div>
+  );
+}
+function ImpactTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="border border-white/20 bg-[#101010] p-3 text-xs text-white shadow-xl">
+      <b>{label}</b>
+      {payload.map((item: any) => (
+        <p key={item.name} className="mt-1" style={{ color: item.color }}>
+          {item.name}: {Number(item.value).toFixed(1)}
+        </p>
+      ))}
+      <p className="mt-2 text-white/45">
+        Win Shares is a demo-only placeholder.
+      </p>
+    </div>
+  );
+}
 
-function DpmTooltip({ active, payload, label }: any) { if (!active || !payload?.length) return null; return <div className="border border-white/20 bg-[#101010] p-3 text-xs text-white shadow-xl"><b>{label}</b>{payload.map((item: any) => <p key={item.name} className="mt-1" style={{color:item.color}}>{item.name}: {Number(item.value).toFixed(2)}</p>)}</div>; }
+function DpmTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div className="border border-white/20 bg-[#101010] p-3 text-xs text-white shadow-xl">
+      <b>{label}</b>
+      {payload.map((item: any) => (
+        <p key={item.name} className="mt-1" style={{ color: item.color }}>
+          {item.name}: {Number(item.value).toFixed(2)}
+        </p>
+      ))}
+    </div>
+  );
+}
 
-function CapTooltip({ active, payload, label }: any) { if (!active || !payload?.length) return null; const player = Number(payload.find((item: any) => item.dataKey === "player")?.value ?? 0); const team = Number(payload.find((item: any) => item.dataKey === "team")?.value ?? 0); return <div className="border border-white/20 bg-[#101010] p-3 text-xs text-white shadow-xl"><b>{label}</b><p className="mt-2 text-white/70">Team payroll: ${team.toFixed(1)}M</p><p className="text-[#e84b37]">Player cap hit: ${player.toFixed(1)}M</p><p className="mt-2 border-t border-white/15 pt-2 font-bold">Combined: ${(team + player).toFixed(1)}M</p></div>; }
+function CapTooltip({ active, payload, label }: any) {
+  if (!active || !payload?.length) return null;
+  const player = Number(
+    payload.find((item: any) => item.dataKey === "player")?.value ?? 0,
+  );
+  const team = Number(
+    payload.find((item: any) => item.dataKey === "team")?.value ?? 0,
+  );
+  return (
+    <div className="border border-white/20 bg-[#101010] p-3 text-xs text-white shadow-xl">
+      <b>{label}</b>
+      <p className="mt-2 text-white/70">Team payroll: ${team.toFixed(1)}M</p>
+      <p className="text-[#e84b37]">Player cap hit: ${player.toFixed(1)}M</p>
+      <p className="mt-2 border-t border-white/15 pt-2 font-bold">
+        Combined: ${(team + player).toFixed(1)}M
+      </p>
+    </div>
+  );
+}
