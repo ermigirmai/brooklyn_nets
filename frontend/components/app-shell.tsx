@@ -13,8 +13,8 @@ export function AppShell({ children, onNavigate, userName }: Readonly<{ children
   const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="min-h-screen bg-[#090909] text-[#f4f3ee]">
-      <aside className={`fixed inset-y-0 left-0 z-20 hidden border-r border-white/10 bg-[#101010] transition-[width] duration-200 lg:flex lg:flex-col ${collapsed ? "w-[112px]" : "w-[232px]"}`}>
+    <div className="min-h-screen bg-[#101720] text-[#f4f3ee]">
+      <aside className={`fixed inset-y-0 left-0 z-20 hidden border-r border-[#ffffff12] bg-[#090d12] transition-[width] duration-200 lg:flex lg:flex-col ${collapsed ? "w-[112px]" : "w-[232px]"}`}>
         <div className={`relative flex items-start pt-7 ${collapsed ? "justify-center px-2" : "px-6"}`}>
           <img src={collapsed ? "/brand/brooklyn-nets-primary.svg" : "/brand/brooklyn-nets-alternate.png"} alt="Brooklyn Nets" className={collapsed ? "h-24 w-24 object-contain" : "h-20 w-[184px] object-contain"} />
         </div>
@@ -30,7 +30,7 @@ export function AppShell({ children, onNavigate, userName }: Readonly<{ children
       </aside>
 
       <div className={`transition-[padding] duration-200 ${collapsed ? "lg:pl-[112px]" : "lg:pl-[232px]"}`}>
-        <header className="relative flex h-[72px] items-center justify-center border-b border-white/10 bg-[#0c0c0c] px-5 md:px-8">
+        <header className="relative flex h-[72px] items-center justify-center border-b border-[#ffffff12] bg-[#18212b] px-5 md:px-8">
           <p className="text-2xl font-black tracking-[-.07em] md:text-3xl">BROOOOOOOOOK-LYNNNN!</p>
           <p className="absolute right-5 text-xl font-medium tracking-[-.03em] text-white/65 md:right-8 md:text-2xl">Hi, <span className="font-black text-white">{userName}</span></p>
         </header>
