@@ -9,22 +9,46 @@ import {
   ResponsiveContainer,
   Tooltip,
 } from "recharts";
-import {
-  AppShell,
-  type NavigationLabel,
-} from "@/components/app-shell";
+import { AppShell, type NavigationLabel } from "@/components/app-shell";
 import { ChallengeAssist } from "@/components/challenge-assist";
 import { DecisionDashboard } from "@/components/decision-dashboard";
 import { LoginScreen } from "@/components/login-screen";
+import { WatchlistStar } from "@/components/watchlist-star";
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 const DEFAULT_PLAYER_SLUG = "stephen-curry";
 const COMBINE_YEARS = ["2025-26", "2024-25", "2023-24", "2022-23", "2021-22"];
 
 type WorkspaceView = "evaluate" | "challenge" | "scouting" | "gameday";
-type EvaluationTab = "nba" | "combine";
-type PlayerDetail = { player: { slug: string }; [key: string]: unknown };
+type EvaluationTab = "nba" | "combine" | "watchlist";
+type NbaPlayer = {
+  slug: string;
+  full_name: string;
+  team_name?: string | null;
+  position?: string | null;
+};
+type PlayerDetail = { player: NbaPlayer; [key: string]: unknown };
 type TeamContext = { team_code: string; [key: string]: unknown };
+
+type NbaWatchlistPlayer = {
+  slug: string;
+  name: string;
+  team: string | null;
+  position: string | null;
+};
+
+type DraftWatchlistPlayer = {
+  id: string;
+  personId: number;
+  name: string;
+  position: string | null;
+  draftYear: string;
+};
+
+type Watchlist = {
+  nba: NbaWatchlistPlayer[];
+  draft: DraftWatchlistPlayer[];
+};
 
 type CombineProspect = {
   person_id: number;
@@ -126,6 +150,8 @@ const WORKSPACE_VIEW_BY_NAVIGATION: Record<NavigationLabel, WorkspaceView> = {
   "Gameday Ops": "gameday",
 };
 
+const EMPTY_WATCHLIST: Watchlist = { nba: [], draft: [] };
+
 async function fetchJson<T>(path: string): Promise<T | null> {
   const response = await fetch(`${API_BASE_URL}${path}`);
   return response.ok ? response.json() : null;
@@ -141,6 +167,75 @@ export function PlayerWorkspace() {
   const [comparisonTeam, setComparisonTeam] = useState("BKN");
   const [teamContext, setTeamContext] = useState<TeamContext | null>(null);
   const [isPlayerLoading, setIsPlayerLoading] = useState(true);
+  const [watchlist, setWatchlist] = useState<Watchlist>(EMPTY_WATCHLIST);
+
+  useEffect(() => {
+    if (!userName) return;
+    setWatchlist(loadWatchlist(userName));
+  }, [userName]);
+
+  const updateWatchlist = useCallback(
+    (update: (current: Watchlist) => Watchlist) => {
+      if (!userName) return;
+      setWatchlist((current) => {
+        const next = update(current);
+        window.localStorage.setItem(
+          watchlistKey(userName),
+          JSON.stringify(next),
+        );
+        return next;
+      });
+    },
+    [userName],
+  );
+
+  const toggleNbaPlayer = useCallback(
+    (player: NbaPlayer) => {
+      updateWatchlist((current) => {
+        const isSelected = current.nba.some(({ slug }) => slug === player.slug);
+        return {
+          ...current,
+          nba: isSelected
+            ? current.nba.filter(({ slug }) => slug !== player.slug)
+            : [
+                ...current.nba,
+                {
+                  slug: player.slug,
+                  name: player.full_name,
+                  team: player.team_name ?? null,
+                  position: player.position ?? null,
+                },
+              ],
+        };
+      });
+    },
+    [updateWatchlist],
+  );
+
+  const toggleDraftPlayer = useCallback(
+    (prospect: CombineProspect, draftYear: string) => {
+      const id = `${draftYear}:${prospect.person_id}`;
+      updateWatchlist((current) => {
+        const isSelected = current.draft.some((player) => player.id === id);
+        return {
+          ...current,
+          draft: isSelected
+            ? current.draft.filter((player) => player.id !== id)
+            : [
+                ...current.draft,
+                {
+                  id,
+                  personId: prospect.person_id,
+                  name: prospect.player_name,
+                  position: prospect.position,
+                  draftYear,
+                },
+              ],
+        };
+      });
+    },
+    [updateWatchlist],
+  );
 
   const loadPlayer = useCallback(async (slug: string) => {
     setIsPlayerLoading(true);
@@ -193,11 +288,45 @@ export function PlayerWorkspace() {
                   context={teamContext}
                   onPlayerSelect={loadPlayer}
                   onTeamChange={setComparisonTeam}
+                  isWatchlisted={watchlist.nba.some(
+                    ({ slug }) => slug === selectedPlayer.player.slug,
+                  )}
+                  onToggleWatchlist={() =>
+                    toggleNbaPlayer(selectedPlayer.player)
+                  }
                 />
               )}
             </>
           )}
-          {activeTab === "combine" && <CombineWorkspace />}
+          {activeTab === "combine" && (
+            <CombineWorkspace
+              watchlist={watchlist.draft}
+              onToggleWatchlist={toggleDraftPlayer}
+            />
+          )}
+          {activeTab === "watchlist" && (
+            <WatchlistView
+              watchlist={watchlist}
+              onRemoveNba={(player) =>
+                toggleNbaPlayer({
+                  slug: player.slug,
+                  full_name: player.name,
+                  team_name: player.team,
+                  position: player.position,
+                })
+              }
+              onRemoveDraft={(player) =>
+                toggleDraftPlayer(
+                  {
+                    person_id: player.personId,
+                    player_name: player.name,
+                    position: player.position,
+                  },
+                  player.draftYear,
+                )
+              }
+            />
+          )}
         </main>
       )}
     </AppShell>
@@ -213,20 +342,30 @@ function EvaluationTabs({
 }) {
   return (
     <div className="mb-7 flex border-b border-white/10">
-      {(["nba", "combine"] as const).map((tab) => (
+      {(["nba", "combine", "watchlist"] as const).map((tab) => (
         <button
           key={tab}
           onClick={() => onChange(tab)}
           className={`border-b-2 px-5 py-3 text-xs font-black uppercase tracking-[.14em] ${activeTab === tab ? "border-[#e84b37] text-white" : "border-transparent text-white/40 hover:text-white"}`}
         >
-          {tab === "nba" ? "NBA" : "Draft combine"}
+          {tab === "nba"
+            ? "NBA"
+            : tab === "combine"
+              ? "Draft combine"
+              : "Watchlist"}
         </button>
       ))}
     </div>
   );
 }
 
-function CombineWorkspace() {
+function CombineWorkspace({
+  watchlist,
+  onToggleWatchlist,
+}: {
+  watchlist: DraftWatchlistPlayer[];
+  onToggleWatchlist: (prospect: CombineProspect, draftYear: string) => void;
+}) {
   const [draftYear, setDraftYear] = useState("");
   const [prospects, setProspects] = useState<CombineProspect[]>([]);
   const [selectedProspectId, setSelectedProspectId] = useState("");
@@ -314,6 +453,12 @@ function CombineWorkspace() {
           <CombineProfile
             prospect={selectedProspect}
             classProspects={prospects}
+            isWatchlisted={watchlist.some(
+              ({ id }) => id === `${draftYear}:${selectedProspect.person_id}`,
+            )}
+            onToggleWatchlist={() =>
+              onToggleWatchlist(selectedProspect, draftYear)
+            }
           />
         </div>
       )}
@@ -361,16 +506,27 @@ function SelectField({
 function CombineProfile({
   prospect,
   classProspects,
+  isWatchlisted,
+  onToggleWatchlist,
 }: {
   prospect: CombineProspect;
   classProspects: CombineProspect[];
+  isWatchlisted: boolean;
+  onToggleWatchlist: () => void;
 }) {
   return (
     <div>
       <div className="w-full max-w-sm border border-white/10 bg-[#121212] p-5">
-        <h2 className="text-3xl font-black tracking-[-.07em]">
-          {prospect.player_name}
-        </h2>
+        <div className="flex items-start justify-between gap-4">
+          <h2 className="text-3xl font-black tracking-[-.07em]">
+            {prospect.player_name}
+          </h2>
+          <WatchlistStar
+            isSelected={isWatchlisted}
+            onToggle={onToggleWatchlist}
+            playerName={prospect.player_name}
+          />
+        </div>
         <div className="mt-4 border-t border-white/10 pt-3">
           <p className="text-[10px] font-bold uppercase tracking-[.14em] text-white/40">
             Position
@@ -393,6 +549,122 @@ function CombineProfile({
       </div>
     </div>
   );
+}
+
+function WatchlistView({
+  watchlist,
+  onRemoveNba,
+  onRemoveDraft,
+}: {
+  watchlist: Watchlist;
+  onRemoveNba: (player: NbaWatchlistPlayer) => void;
+  onRemoveDraft: (player: DraftWatchlistPlayer) => void;
+}) {
+  return (
+    <section>
+      <div className="mb-5">
+        <p className="text-[10px] font-bold uppercase tracking-[.16em] text-white/45">
+          Saved evaluations
+        </p>
+        <h1 className="mt-1 text-3xl font-black tracking-[-.06em]">
+          Player watchlist
+        </h1>
+      </div>
+      <div className="grid gap-5 xl:grid-cols-2">
+        <WatchlistGroup
+          title="NBA Players"
+          emptyMessage="No NBA players saved yet."
+          players={watchlist.nba.map((player) => ({
+            id: player.slug,
+            name: player.name,
+            detail: [player.team, player.position].filter(Boolean).join(" · "),
+            onRemove: () => onRemoveNba(player),
+          }))}
+        />
+        <WatchlistGroup
+          title="Draft Prospects"
+          emptyMessage="No draft prospects saved yet."
+          players={watchlist.draft.map((player) => ({
+            id: player.id,
+            name: player.name,
+            detail: [player.draftYear, player.position]
+              .filter(Boolean)
+              .join(" · "),
+            onRemove: () => onRemoveDraft(player),
+          }))}
+        />
+      </div>
+    </section>
+  );
+}
+
+function WatchlistGroup({
+  title,
+  emptyMessage,
+  players,
+}: {
+  title: string;
+  emptyMessage: string;
+  players: Array<{
+    id: string;
+    name: string;
+    detail: string;
+    onRemove: () => void;
+  }>;
+}) {
+  return (
+    <article className="border border-white/10 bg-[#121212] p-5">
+      <div className="flex items-center justify-between border-b border-white/10 pb-4">
+        <h2 className="text-sm font-black uppercase tracking-[.12em]">
+          {title}
+        </h2>
+        <span className="font-mono text-xs text-white/40">
+          {players.length}
+        </span>
+      </div>
+      {players.length === 0 ? (
+        <p className="py-10 text-center text-sm text-white/35">
+          {emptyMessage}
+        </p>
+      ) : (
+        <div className="divide-y divide-white/10">
+          {players.map((player) => (
+            <div key={player.id} className="flex items-center gap-4 py-4">
+              <div className="min-w-0 flex-1">
+                <p className="truncate text-base font-bold">{player.name}</p>
+                {player.detail && (
+                  <p className="mt-1 text-xs text-white/40">{player.detail}</p>
+                )}
+              </div>
+              <WatchlistStar
+                isSelected
+                onToggle={player.onRemove}
+                playerName={player.name}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+    </article>
+  );
+}
+
+function watchlistKey(userName: string) {
+  return `bklyn-nets-watchlist:${userName.trim().toLowerCase()}`;
+}
+
+function loadWatchlist(userName: string): Watchlist {
+  try {
+    const stored = window.localStorage.getItem(watchlistKey(userName));
+    if (!stored) return EMPTY_WATCHLIST;
+    const parsed = JSON.parse(stored) as Partial<Watchlist>;
+    return {
+      nba: Array.isArray(parsed.nba) ? parsed.nba : [],
+      draft: Array.isArray(parsed.draft) ? parsed.draft : [],
+    };
+  } catch {
+    return EMPTY_WATCHLIST;
+  }
 }
 
 function buildCombineChartData(

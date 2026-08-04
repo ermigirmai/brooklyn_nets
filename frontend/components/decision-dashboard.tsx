@@ -18,12 +18,15 @@ import {
   ReferenceLine,
 } from "recharts";
 import { PlayerSearch } from "./player-search";
+import { WatchlistStar } from "./watchlist-star";
 
 type Props = {
   detail: any;
   context: any;
   onPlayerSelect: (slug: string) => void;
   onTeamChange: (team: string) => void;
+  isWatchlisted: boolean;
+  onToggleWatchlist: () => void;
 };
 const teams = [
   "ATL",
@@ -67,6 +70,8 @@ export function DecisionDashboard({
   context,
   onPlayerSelect,
   onTeamChange,
+  isWatchlisted,
+  onToggleWatchlist,
 }: Props) {
   const {
     player,
@@ -136,7 +141,7 @@ export function DecisionDashboard({
               alt={player.full_name}
               className="h-20 w-20 object-cover object-top"
             />
-            <div>
+            <div className="min-w-0 flex-1">
               <h1 className="mt-1 text-2xl font-black tracking-[-.06em]">
                 {player.full_name}
               </h1>
@@ -154,6 +159,11 @@ export function DecisionDashboard({
                 <p className="mt-1 text-xs text-white/40">{playerBio}</p>
               )}
             </div>
+            <WatchlistStar
+              isSelected={isWatchlisted}
+              onToggle={onToggleWatchlist}
+              playerName={player.full_name}
+            />
           </div>
         </article>
         <div className="grid gap-3 border border-white/10 bg-[#121212] p-4 sm:grid-cols-[minmax(0,1fr)_156px]">
