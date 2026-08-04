@@ -40,13 +40,37 @@ const calls: Record<
 };
 
 const cameras = [
-  "Baseline left",
-  "Baseline right",
-  "Sideline A",
-  "Sideline B",
-  "High center",
-  "Rim camera",
-];
+  {
+    name: "Baseline left",
+    footageUrl: "https://media.giphy.com/media/Vi6aNTnTtdFrBN5PHf/giphy.gif",
+    imageClassName: "scale-[1.12] object-center",
+  },
+  {
+    name: "Baseline right",
+    footageUrl: "https://media.giphy.com/media/Vi6aNTnTtdFrBN5PHf/giphy.gif",
+    imageClassName: "scale-x-[-1.12] scale-y-[1.12] object-center",
+  },
+  {
+    name: "Sideline A",
+    footageUrl: "https://media.giphy.com/media/XpjumsFlm2S0dvBssO/giphy.gif",
+    imageClassName: "scale-125 object-left",
+  },
+  {
+    name: "Sideline B",
+    footageUrl: "https://media.giphy.com/media/XpjumsFlm2S0dvBssO/giphy.gif",
+    imageClassName: "scale-x-[-1.25] scale-y-[1.25] object-right",
+  },
+  {
+    name: "High center",
+    footageUrl: "https://media.giphy.com/media/2YembO6TC0KL7IvP5o/giphy.gif",
+    imageClassName: "scale-110 object-center",
+  },
+  {
+    name: "Rim camera",
+    footageUrl: "https://media.giphy.com/media/2YembO6TC0KL7IvP5o/giphy.gif",
+    imageClassName: "scale-[1.35] object-top",
+  },
+] as const;
 
 export function ChallengeAssist() {
   const [frame, setFrame] = useState(12);
@@ -105,7 +129,12 @@ export function ChallengeAssist() {
           </div>
           <div className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">
             {cameras.map((camera, index) => (
-              <Camera key={camera} name={camera} frame={frame} index={index} />
+              <Camera
+                key={camera.name}
+                camera={camera}
+                frame={frame}
+                index={index}
+              />
             ))}
           </div>
         </div>
@@ -149,32 +178,34 @@ export function ChallengeAssist() {
 }
 
 function Camera({
-  name,
+  camera,
   frame,
   index,
 }: {
-  name: string;
+  camera: (typeof cameras)[number];
   frame: number;
   index: number;
 }) {
-  const ballX = 26 + ((frame * (index + 2)) % 50);
-  const ballY = 34 + ((frame * (index + 1)) % 24);
   return (
     <article className="overflow-hidden border border-white/10 bg-[#111]">
-      <div className="relative aspect-video overflow-hidden bg-[radial-gradient(circle_at_50%_35%,#6c5b45_0,transparent_18%),linear-gradient(145deg,#251f1a,#0a0a0a_70%)]">
-        <div className="absolute inset-x-5 bottom-4 top-4 border border-[#e6d5a6]/35" />
-        <div className="absolute left-1/2 top-4 h-[calc(100%-2rem)] border-l border-[#e6d5a6]/25" />
-        <div className="absolute left-[20%] right-[20%] top-1/2 border-t border-[#e6d5a6]/25" />
-        <div
-          className="absolute h-3 w-3 rounded-full bg-[#e84b37] shadow-[0_0_12px_#e84b37]"
-          style={{ left: `${ballX}%`, top: `${ballY}%` }}
+      <div className="relative aspect-video overflow-hidden bg-black">
+        <img
+          src={camera.footageUrl}
+          alt={`${camera.name} replay footage`}
+          className={`h-full w-full object-cover grayscale-[20%] ${camera.imageClassName}`}
         />
+        <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(transparent_50%,rgba(0,0,0,.18)_50%)] bg-[length:100%_4px]" />
+        <div className="pointer-events-none absolute inset-0 ring-1 ring-inset ring-white/10" />
+        <div className="absolute right-3 top-3 flex items-center gap-1.5 bg-black/70 px-2 py-1 font-mono text-[9px] font-bold uppercase tracking-[.12em] text-white/80">
+          <span className="h-1.5 w-1.5 animate-pulse rounded-full bg-[#e84b37]" />
+          Replay
+        </div>
         <div className="absolute bottom-3 left-3 bg-black/70 px-2 py-1 font-mono text-[10px] text-white/70">
           CAM {index + 1} · {String(frame + 1).padStart(2, "0")}
         </div>
       </div>
       <p className="border-t border-white/10 px-3 py-2 text-xs font-bold text-white/70">
-        {name}
+        {camera.name}
       </p>
     </article>
   );
