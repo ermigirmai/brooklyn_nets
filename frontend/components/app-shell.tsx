@@ -79,7 +79,7 @@ export function AppShell({
       >
         <header className="relative flex h-[72px] items-center justify-center border-b border-[#ffffff12] bg-[#202020] px-5 md:px-8">
           <p className="text-2xl font-black tracking-[-.07em] md:text-3xl">
-            BROOOOOOOOOK-LYNNNN!
+            " BROOOOOOOOOK - LYNNNN "
           </p>
           <p className="absolute right-5 text-xl font-medium tracking-[-.03em] text-white/65 md:right-8 md:text-2xl">
             Hi, <span className="font-black text-white">{userName}</span>

@@ -47,12 +47,12 @@ const cameras = [
   },
   {
     name: "Baseline right",
-    footageUrl: "https://media.giphy.com/media/PZlQeMmUdl42pSoWXx/giphy.gif",
-    imageClassName: "scale-x-[-1.12] scale-y-[1.12] object-center",
+    footageUrl: "https://media.giphy.com/media/szrtunDv8CXmZjp62C/giphy.gif",
+    imageClassName: "scale-[1.12] object-center",
   },
   {
     name: "Sideline A",
-    footageUrl: "https://media.giphy.com/media/T9RDCGmlHEc2y8BNEd/giphy.gif",
+    footageUrl: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExcmRqY3VyZ3R1NjltbnNncGJoOGxlcWhmY2xtN3Z6MHExMXc1ZzZ6YiZlcD12MV9naWZzX3NlYXJjaCZjdD1n/p4vOrA2FKWSTcNstke/giphy.gif",
     imageClassName: "scale-125 object-left",
   },
   {
@@ -62,12 +62,12 @@ const cameras = [
   },
   {
     name: "High center",
-    footageUrl: "https://media.giphy.com/media/uy9v3pRhDW9DH4nlS8/giphy.gif",
+    footageUrl: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExdTdrY2pkaXpyc3MycGg3Yjg3Z3drMGd4ajA3ZmxzY3kwenUyYTd3MSZlcD12MV9naWZzX3NlYXJjaCZjdD1n/ggu14QisvhbBm87v12/giphy.gif",
     imageClassName: "scale-110 object-center",
   },
   {
     name: "Rim camera",
-    footageUrl: "https://media.giphy.com/media/uy9v3pRhDW9DH4nlS8/giphy.gif",
+    footageUrl: "https://media.giphy.com/media/v1.Y2lkPTc5MGI3NjExbGRkeG43YWRhbnowOXo5NW50bnpmNW11c3R4MnMyZnZvMXdlczdmbyZlcD12MV9naWZzX3NlYXJjaCZjdD1n/KDnw4BkUWaRHhOQDVi/giphy.gif",
     imageClassName: "scale-[1.35] object-top",
   },
 ] as const;
